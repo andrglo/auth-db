@@ -1,0 +1,47 @@
+{
+  "name": "auth-db",
+  "version": "0.0.0",
+  "description": "Authentication and authorization database",
+  "homepage": "",
+  "repository": "andrglo/auth-db",
+  "author": {
+    "name": "Andre Gloria",
+    "email": "andredagloria@gmail.com",
+    "url": ""
+  },
+  "files": [
+    "src"
+  ],
+  "main": "src/index.js",
+  "keywords": [
+    "authentication",
+    "authorization",
+    "user",
+    "roles",
+    "sessions",
+    "database"
+  ],
+  "devDependencies": {
+    "chai": "^3.2.0",
+    "gulp": "^3.6.0",
+    "gulp-coveralls": "^0.1.0",
+    "gulp-eslint": "^0.15.0",
+    "gulp-istanbul": "^0.9.0",
+    "gulp-mocha": "^2.0.0",
+    "gulp-nsp": "^0.4.5",
+    "gulp-util": "^3.0.6",
+    "ioredis": "^1.7.6",
+    "randomstring": "^1.0.8",
+    "redis": "^1.0.0"
+  },
+  "scripts": {
+    "prepublish": "gulp prepublish",
+    "test": "gulp"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "crypto": "0.0.3",
+    "lodash": "^3.10.1",
+    "uuid": "^2.0.1"
+  }
+}
