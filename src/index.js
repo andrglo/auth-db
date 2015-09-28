@@ -1,5 +1,4 @@
 var assert = require('assert');
-var _ = require('lodash');
 var crypto = require('crypto');
 var uuid = require('uuid');
 
@@ -12,8 +11,7 @@ const MIN_PASSWORD_LENGTH = 6;
  * granted an admin attribute that cannot be removed
  *
  * @module db
- * @param {object} redis - A redis open connection using
- * packages node-redis or ioredis
+ * @param {object} redis - A redis open connection using ioredis
  * @returns {object}
  */
 module.exports = function(redis) {
@@ -72,7 +70,7 @@ module.exports = function(redis) {
           return redis.hgetall(USERS + username)
               .then(function(record) {
                 assert(record.username && record.username.toLowerCase() === username, 'user not found');
-                record = _.extend(record, user);
+                record = Object.assign(record, user);
                 return redis.hmset(USERS + username, record)
                     .then(function(res) {
                       return res === 'OK';
@@ -125,7 +123,7 @@ module.exports = function(redis) {
       create: function(role) {
         return Promise.resolve().then(function() {
           assert(role.name, 'missing name');
-          assert(role.acl === void 0 || _.isArray(role.acl), 'acl must be an array');
+          assert(role.acl === void 0 || Array.isArray(role.acl), 'acl must be an array');
           var acl = role.acl;
           delete role.acl;
           var key = ROLES + role.name.toLowerCase();
@@ -151,14 +149,14 @@ module.exports = function(redis) {
       update: function(role, name) {
         return Promise.resolve().then(function() {
           assert(name, 'missing name');
-          assert(role.acl === void 0 || _.isArray(role.acl), 'acl must be an array');
+          assert(role.acl === void 0 || Array.isArray(role.acl), 'acl must be an array');
           var acl = role.acl;
           delete role.acl;
           name = name.toLowerCase();
           return redis.hgetall(ROLES + name)
               .then(function(record) {
                 assert(record.name && record.name.toLowerCase() === name, 'role not found');
-                record = _.extend(record, role);
+                record = Object.assign(record, role);
                 var key = ROLES + name;
                 return redis.hmset(key, record)
                     .then(function(res) {
@@ -254,7 +252,9 @@ module.exports = function(redis) {
  * @param user
  */
 function encryptPassword(user) {
-  if (!user.password) return;
+  if (!user.password) {
+    return;
+  }
   assert(user.password.length >= MIN_PASSWORD_LENGTH, 'password should have a minimum of ' + MIN_PASSWORD_LENGTH + ' characters');
   user.salt = crypto.randomBytes(16).toString('base64');
   user.password = hashPassword(user.salt, user.password);
@@ -280,7 +280,7 @@ function aclToSet(acl) {
     }
     assert(aci.resource, 'Resource must be informed');
     aci.methods = aci.methods || ['*'];
-    aci.methods = _.isArray(aci.methods) ? aci.methods : [aci.methods];
+    aci.methods = Array.isArray(aci.methods) ? aci.methods : [aci.methods];
     aci.methods.forEach(function(method) {
       set.push(aci.resource.toLowerCase() + ':' + method.toUpperCase());
     });
@@ -292,15 +292,15 @@ function setToAcl(set) {
   var acl = [];
   set.forEach(function(str) {
     var elements = str.split(':');
-    var aci = _.find(acl, 'resource', elements[0]);
-    if (!aci) {
-      aci = {
+    var aci = acl.filter(obj => obj.resource === elements[0]);
+    if (aci.length === 0) {
+      acl.push({
         resource: elements[0],
-        methods: []
-      };
-      acl.push(aci);
+        methods: [elements[1]]
+      });
+    } else {
+      aci[0].methods.push(elements[1]);
     }
-    aci.methods.push(elements[1]);
   });
   return acl;
 }

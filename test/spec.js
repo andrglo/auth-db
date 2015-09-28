@@ -3,11 +3,11 @@
 var chai = require('chai');
 var expect = chai.expect;
 chai.should();
-var _ = require('lodash');
+var util = require('util');
 var gutil = require('gulp-util');
 var randomstring = require('randomstring');
 
-var log = gutil.log;
+var log = console.log;
 
 module.exports = function(options) {
 
@@ -135,7 +135,7 @@ module.exports = function(options) {
         role.name.should.equal('Marketing');
         let resource1, resource2;
         role.acl.map(function(aci) {
-          if (_.isObject(aci) &&
+          if (util.isObject(aci) &&
             aci.resource === 'spec' &&
             aci.methods.length === 1 &&
             aci.methods[0] === '*' &&
@@ -143,11 +143,11 @@ module.exports = function(options) {
             resource1 = true;
           }
           if (aci.resource === 'habilis/cadastro' &&
-            _.isArray(aci.methods) &&
+            Array.isArray(aci.methods) &&
             aci.methods.length === 2 &&
             aci.methods.indexOf('POST') !== -1 &&
-            aci.methods.indexOf('PUT') !== -1 &&   //todo fix tests bellow
-            resource2 === void 0) {//todo implement role hasPermissions
+            aci.methods.indexOf('PUT') !== -1 &&
+            resource2 === void 0) {
             resource2 = true;
           }
         });
@@ -235,13 +235,13 @@ module.exports = function(options) {
         let resource1, resource2;
         role.acl.map(function(aci) {
           if (aci.resource === 'token' &&
-            _.isArray(aci.methods) &&
+            Array.isArray(aci.methods) &&
             aci.methods[0] === 'GET' &&
             resource1 === void 0) {
             resource1 = true
           }
           if (aci.resource === 'habilis/cadastro' &&
-            _.isArray(aci.methods) &&
+            Array.isArray(aci.methods) &&
             aci.methods.length === 2 &&
             aci.methods.indexOf('POST') !== -1 &&
             aci.methods.indexOf('UPDATE') !== -1 &&
@@ -261,7 +261,7 @@ module.exports = function(options) {
   describe('Sessions', function() {
     it('should return an empty session', function(done) {
       db.sessions.get('1').then(function(res) {
-        expect(_.isEmpty(res)).to.equal(true);
+        expect(res).to.deep.equal({});
         done()
       }).catch(function(err) {
         done(err);
@@ -293,7 +293,7 @@ module.exports = function(options) {
     });
     it('now should have gone', function(done) {
       db.sessions.get(session).then(function(res) {
-        expect(_.isEmpty(res)).to.equal(true);
+        expect(res).to.deep.equal({});
         done()
       }).catch(function(err) {
         done(err);
@@ -328,7 +328,7 @@ module.exports = function(options) {
     });
     it('now should have gone', function(done) {
       db.sessions.get(session).then(function(res) {
-        expect(_.isEmpty(res)).to.equal(true);
+        expect(res).to.deep.equal({});
         done()
       }).catch(function(err) {
         done(err);

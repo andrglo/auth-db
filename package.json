@@ -22,17 +22,16 @@
     "database"
   ],
   "devDependencies": {
-    "chai": "^3.2.0",
+    "chai": "^3.3.0",
     "gulp": "^3.6.0",
     "gulp-coveralls": "^0.1.0",
-    "gulp-eslint": "^0.15.0",
-    "gulp-istanbul": "^0.9.0",
+    "gulp-eslint": "^1.0.0",
+    "gulp-istanbul": "^0.10.1",
     "gulp-mocha": "^2.0.0",
     "gulp-nsp": "^0.4.5",
     "gulp-util": "^3.0.6",
-    "ioredis": "^1.7.6",
-    "randomstring": "^1.0.8",
-    "redis": "^1.0.0"
+    "ioredis": "^1.9.0",
+    "randomstring": "^1.1.0"
   },
   "scripts": {
     "prepublish": "gulp prepublish",
@@ -41,7 +40,6 @@
   "license": "MIT",
   "dependencies": {
     "crypto": "0.0.3",
-    "lodash": "^3.10.1",
     "uuid": "^2.0.1"
   }
 }
