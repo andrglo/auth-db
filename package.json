@@ -29,8 +29,6 @@
     "gulp-istanbul": "^0.10.1",
     "gulp-mocha": "^2.0.0",
     "gulp-nsp": "^0.4.5",
-    "gulp-util": "^3.0.6",
-    "ioredis": "^1.9.0",
     "randomstring": "^1.1.0"
   },
   "scripts": {
@@ -40,6 +38,7 @@
   "license": "MIT",
   "dependencies": {
     "crypto": "0.0.3",
+    "ioredis": "^1.9.0",
     "uuid": "^2.0.1"
   }
 }

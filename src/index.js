@@ -2,48 +2,26 @@ var assert = require('assert');
 var crypto = require('crypto');
 var uuid = require('uuid');
 
+var Redis = require('ioredis');
+var redis = new Redis({
+  port: process.env.REDIS_AUTH_PORT || process.env.REDIS_PORT || 6379,
+  host: process.env.REDIS_AUTH_HOST || process.env.REDIS_HOST || '127.0.0.1',
+  db: process.env.REDIS_AUTH_DATABASE || process.env.REDIS_DATABASE || 0
+});
+
 const MIN_PASSWORD_LENGTH = 6;
+const USERS = 'auth-db:users:';
+const ROLES = 'auth-db:roles:';
+const SESSIONS = 'auth-db:sessions:';
 
-/**
- * Store user, roles and sessions data. Establish a username
- * for the main user, owner, that should be the first to be
- * included and cannot be deleted. It' automatically
- * granted an admin attribute that cannot be removed
- *
- * @module db
- * @param {object} redis - A redis open connection using ioredis
- * @returns {object}
- */
-module.exports = function(redis) {
+module.exports = {
 
-  const USERS = 'users:';
-  const ROLES = 'roles:';
-  const SESSIONS = 'sessions:';
+  redis,
 
-  //todo queries for user and roles
-  return {
-    /**
-     * Handle users instances
-     *
-     * @exports db.users
-     */
-    users: {
-      /**
-       * Get a user by username
-       *
-       * @param username
-       * @returns {Promise} The user
-       */
+  users: {
       get: function(username) {
         return redis.hgetall(USERS + username.toLowerCase());
       },
-      /**
-       * Create a user. Require at least a property
-       * username and password
-       *
-       * @param user
-       * @returns {Promise} true if success
-       */
       create: function(user) {
         return Promise.resolve().then(function() {
           assert(user.username, 'missing username');
@@ -55,13 +33,6 @@ module.exports = function(redis) {
               });
         });
       },
-      /**
-       * Update a user
-       *
-       * @param user
-       * @param username
-       * @returns {Promise} true if success
-       */
       update: function(user, username) {
         return Promise.resolve().then(function() {
           assert(username, 'missing username');
@@ -78,29 +49,11 @@ module.exports = function(redis) {
               });
         });
       },
-      /**
-       * Check the user password
-       *
-       * @param password
-       * @param user
-       * @returns {boolean}
-       */
       checkPassword: function(password, user) {
         return user.password === hashPassword(user.salt, password);
       }
     },
-    /**
-     * Handle roles instances
-     *
-     * @exports db.roles
-     */
     roles: {
-      /**
-       * Get a role by name
-       *
-       * @param name
-       * @returns {Promise} The role
-       */
       get: function(name) {
         var key = ROLES + name.toLowerCase();
         return redis.hgetall(key)
@@ -114,12 +67,6 @@ module.exports = function(redis) {
                   });
             });
       },
-      /**
-       * Create a new role
-       *
-       * @param role
-       * @returns {Promise} boolean
-       */
       create: function(role) {
         return Promise.resolve().then(function() {
           assert(role.name, 'missing name');
@@ -139,13 +86,6 @@ module.exports = function(redis) {
               });
         });
       },
-      /**
-       * Update a role
-       *
-       * @param role
-       * @param name
-       * @returns {Promise} boolean
-       */
       update: function(role, name) {
         return Promise.resolve().then(function() {
           assert(name, 'missing name');
@@ -191,28 +131,10 @@ module.exports = function(redis) {
                 });
       }
     },
-    /**
-     * Handle sessions instances
-     *
-     * @exports db.sessions
-     */
     sessions: {
-      /**
-       * Get a session by id
-       *
-       * @param id
-       * @returns {Promise} The session
-       */
       get: function(id) {
         return redis.hgetall(SESSIONS + id);
       },
-      /**
-       * Create a new session
-       *
-       * @param expiresInSeconds
-       * @param data
-       * @returns {Promise} Id of the created session
-       */
       create: function(expiresInSeconds, data) {
         var id = uuid.v4();
         var key = SESSIONS + id;
@@ -227,12 +149,6 @@ module.exports = function(redis) {
               return res === 'OK' ? id : null;
             });
       },
-      /**
-       * Deletes a session
-       *
-       * @param id
-       * @returns {Promise} boolean
-       */
       destroy: function(id) {
         assert(typeof id === 'string', 'session id must be a string');
         return redis.del(SESSIONS + id)
@@ -242,7 +158,6 @@ module.exports = function(redis) {
       }
     }
 
-  };
 };
 
 /**

@@ -27,7 +27,7 @@ gulp.task('pre-test', function() {
 
 gulp.task('test', ['pre-test'], function(cb) {
   var error;
-  gulp.src('test/index.js')
+  gulp.src('test/spec.js')
     .pipe(mocha({reporter: 'spec', timeout: 15000}))
     .on('error', function(e) {
       error = e;
