@@ -230,6 +230,14 @@ describe('Roles', function() {
       done(err);
     });
   });
+  it('Role undefined should be rejected', function(done) {
+    authDb.roles.hasPermission([void 0], 'habilis/cadastro', 'post').then(function(allowed) {
+      allowed.should.equal(false);
+      done();
+    }).catch(function(err) {
+      done(err);
+    });
+  });
   it('should update role Marketing', function(done) {
     authDb.roles.update({
       name: 'MARKETING',

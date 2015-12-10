@@ -117,6 +117,9 @@ module.exports = {
     hasPermission: function(roles, resource, method) {
 
       var checkRole = name => {
+        if (typeof name !== 'string') {
+          return false;
+        }
         var key = ROLES + name.toLowerCase() + ':acl';
         return typeof method === 'string' ?
           redis.sismember(key, resource + method.toUpperCase())
@@ -127,7 +130,7 @@ module.exports = {
       };
 
       resource = resource.toLowerCase() + ':';
-      roles = typeof roles === 'string' ? [roles] : roles;
+      roles = Array.isArray(roles) ? roles : [roles];
 
       return roles.reduce((promise, role) =>
         promise.then(res =>
