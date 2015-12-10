@@ -20,7 +20,13 @@ module.exports = {
 
   users: {
     get: function(username) {
-      return redis.hgetall(USERS + username.toLowerCase());
+      return redis.hgetall(USERS + username.toLowerCase())
+        .then(user => {
+          if (user.roles) {
+            user.roles = user.roles.split(',');
+          }
+          return user;
+        });
     },
     create: function(user) {
       return Promise.resolve().then(function() {

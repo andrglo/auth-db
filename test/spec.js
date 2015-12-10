@@ -41,9 +41,19 @@ describe('Users', function() {
     authDb.users.create({
       username: 'Andre',
       password: '12345678',
-      firstName: 'André'
+      firstName: 'André',
+      roles: ['none']
     }).then(function(res) {
       res.should.be.true;
+      done();
+    }).catch(function(err) {
+      done(err);
+    });
+  });
+  it('Should read field roles as an array', function(done) {
+    authDb.users.get('andre').then(function(user) {
+      expect(user.roles).to.be.a('array');
+      expect(user.roles.length).to.equal(1);
       done();
     }).catch(function(err) {
       done(err);
@@ -54,7 +64,8 @@ describe('Users', function() {
       username: 'ANDRE',
       password: '12345678',
       firstName: 'Heitor',
-      lastName: 'Glória'
+      lastName: 'Glória',
+      roles: ['none', 'other']
     }, 'andre').then(function(res) {
       res.should.be.true;
       done();
@@ -75,6 +86,9 @@ describe('Users', function() {
       expect(authDb.users.checkPassword('12345678', user)).to.equal(true);
       user.firstName.should.equal('Heitor');
       user.lastName.should.equal('Glória');
+      expect(user.roles).to.be.a('array');
+      expect(user.roles.length).to.equal(2);
+      expect(user.roles).to.eql(['none', 'other']);
       done();
     }).catch(function(err) {
       done(err);
