@@ -131,7 +131,7 @@ module.exports = {
 
       return roles.reduce((promise, role) =>
         promise.then(res =>
-          res === true ? res : checkRole(role)), Promise.resolve(false))
+          res === true ? res : checkRole(role)), Promise.resolve(false));
 
     }
   },
