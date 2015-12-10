@@ -114,21 +114,25 @@ module.exports = {
           });
       });
     },
-    hasPermission: function(name, resource, method) {
-      var key = ROLES + name.toLowerCase() + ':acl';
+    hasPermission: function(roles, resource, method) {
+
+      var checkRole = name => {
+        var key = ROLES + name.toLowerCase() + ':acl';
+        return typeof method === 'string' ?
+          redis.sismember(key, resource + method.toUpperCase())
+            .then(res => res || redis.sismember(key, resource + '*'))
+            .then(res => res === 1) :
+          redis.sismember(key, resource + '*')
+            .then(res => res === 1);
+      };
+
       resource = resource.toLowerCase() + ':';
-      return typeof method === 'string' ?
-        redis.sismember(key, resource + method.toUpperCase())
-          .then(function(res) {
-            return res || redis.sismember(key, resource + '*');
-          })
-          .then(function(res) {
-            return res === 1;
-          }) :
-        redis.sismember(key, resource + '*')
-          .then(function(res) {
-            return res === 1;
-          });
+      roles = typeof roles === 'string' ? [roles] : roles;
+
+      return roles.reduce((promise, role) =>
+        promise.then(res =>
+          res === true ? res : checkRole(role)), Promise.resolve(false))
+
     }
   },
   sessions: {

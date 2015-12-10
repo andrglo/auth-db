@@ -206,6 +206,30 @@ describe('Roles', function() {
       done(err);
     });
   });
+  it('Role mArketing in a array should have permission to habilis/cadastro post', function(done) {
+    authDb.roles.hasPermission(['a', 'b', 'c',  'mArketing', 'd'], 'habilis/cadastro', 'post').then(function(allowed) {
+      allowed.should.equal(true);
+      done();
+    }).catch(function(err) {
+      done(err);
+    });
+  });
+  it('Role mArketing in a array should have permission to habilis/cadastro post - last position', function(done) {
+    authDb.roles.hasPermission(['a', 'b', 'c',  'mArketing'], 'habilis/cadastro', 'post').then(function(allowed) {
+      allowed.should.equal(true);
+      done();
+    }).catch(function(err) {
+      done(err);
+    });
+  });
+  it('Role mArketing if not in the array should should not have permission to habilis/cadastro post', function(done) {
+    authDb.roles.hasPermission(['a', 'b', 'c'], 'habilis/cadastro', 'post').then(function(allowed) {
+      allowed.should.equal(false);
+      done();
+    }).catch(function(err) {
+      done(err);
+    });
+  });
   it('should update role Marketing', function(done) {
     authDb.roles.update({
       name: 'MARKETING',
