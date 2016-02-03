@@ -25,6 +25,8 @@ module.exports = {
           if (user.roles) {
             user.roles = user.roles.split(',');
           }
+          delete user.password;
+          delete user.salt;
           return user;
         });
     },
@@ -55,8 +57,11 @@ module.exports = {
           });
       });
     },
-    checkPassword: function(password, user) {
-      return user.password === hashPassword(user.salt, password);
+    checkPassword: function(credentials) {
+      return redis.hgetall(USERS + credentials.username.toLowerCase())
+        .then(user => {
+          return user.password === hashPassword(user.salt, credentials.password);
+        });
     }
   },
   roles: {

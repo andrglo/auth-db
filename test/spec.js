@@ -76,19 +76,22 @@ describe('Users', function() {
   it('should read all fields of user Andre', function(done) {
     authDb.users.get('andre').then(function(user) {
       user.should.have.property('username');
-      user.should.have.property('password');
-      user.should.have.property('salt');
+      user.should.not.have.property('password');
+      user.should.not.have.property('salt');
       user.should.have.property('firstName');
       user.should.have.property('lastName');
-      user.should.have.property('salt');
       user.username.should.equal('ANDRE');
-      user.password.should.not.equal('12345678');
-      expect(authDb.users.checkPassword('12345678', user)).to.equal(true);
       user.firstName.should.equal('Heitor');
       user.lastName.should.equal('Glória');
       expect(user.roles).to.be.a('array');
       expect(user.roles.length).to.equal(2);
       expect(user.roles).to.eql(['none', 'other']);
+      return authDb.users.checkPassword({
+        password: '12345678',
+        username: user.username
+      });
+    }).then(res => {
+      expect(res).to.equal(true);
       done();
     }).catch(function(err) {
       done(err);
