@@ -2,21 +2,12 @@ var assert = require('assert');
 var crypto = require('crypto');
 var cuid = require('cuid');
 
-var Redis = require('ioredis');
-var redis = new Redis({
-  port: process.env.REDIS_AUTH_PORT || process.env.REDIS_PORT || 6379,
-  host: process.env.REDIS_AUTH_HOST || process.env.REDIS_HOST || '127.0.0.1',
-  db: process.env.REDIS_AUTH_DATABASE || process.env.REDIS_DATABASE || 0
-});
-
 const MIN_PASSWORD_LENGTH = 6;
 const USERS = 'auth-db:users:';
 const ROLES = 'auth-db:roles:';
 const SESSIONS = 'auth-db:sessions:';
 
-module.exports = {
-
-  redis,
+module.exports = (redis) => ({
 
   users: {
     get: function(username) {
@@ -176,7 +167,7 @@ module.exports = {
     }
   }
 
-};
+});
 
 /**
  * Encrypt password

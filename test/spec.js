@@ -6,14 +6,19 @@ chai.should();
 var util = require('util');
 var randomstring = require('randomstring');
 
-process.env.REDIS_DATABASE = 11;
+var Redis = require('ioredis');
+var redis = new Redis({
+  port: process.env.REDIS_PORT || 6379,
+  host: process.env.REDIS_HOST || '127.0.0.1',
+  db: process.env.REDIS_DATABASE || 0
+});
 
-var authDb = require('../src');
+var authDb = require('../src')(redis);
 
 var log = console.log;
 
 before(function() {
-  return authDb.redis.flushdb();
+  return redis.flushdb();
 });
 
 describe('Users', function() {
@@ -429,5 +434,5 @@ describe('Permission check benchmark', function() {
 });
 
 after(function() {
-  return authDb.redis.quit();
+  return redis.quit();
 });
