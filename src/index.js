@@ -7,6 +7,11 @@ const USERS = 'auth-db:users:';
 const ROLES = 'auth-db:roles:';
 const SESSIONS = 'auth-db:sessions:';
 
+const throwError = (redis, message) => {
+  redis.unwatch();
+  throw new Error(message);
+};
+
 module.exports = (redis) => ({
 
   users: {
@@ -23,50 +28,20 @@ module.exports = (redis) => ({
     },
     create: function(user) {
       return Promise.resolve().then(function() {
-        assert(user.username, 'missing username');
-        assert(user.password, 'missing password');
+        assert(user.username, 'Missing username');
+        assert(user.password, 'Missing password');
         encryptPassword(user);
         const hash = USERS + user.username.toLowerCase();
+        redis.watch(hash);
         return redis
-          .multi()
-          .watch(hash)
-          .hsetnx(hash, 'username', '' )
-          .hsetnx(hash, 'username', '' )
-          .exec()
-          .then(function(res) {
-            console.log('res-1', res)
-            return res === 0 ? '' : redis.hmset(USERS + user.username.toLowerCase(), user);
-          })
-          .then(function(res) {
-            return res === 'OK';
-          });
-        // var abc = redis
-        //   .multi()
-        //   .watch(hash)
-        //   ;
-        // return new Promise((resolve, reject) => {
-        //   setTimeout(() => {
-        //     return abc.exec()
-        //       .then(function(res) {
-        //         console.log('res-1', res)
-        //         if (res[0] === null) {
-        //           return
-        //           resolve(redis.hmset(USERS + user.username.toLowerCase(), user))
-        //         } else {
-        //           reject('NOOK')
-        //         }
-        //         return '';
-        //       })
-        //   }, 1000)
-        // });
-
-        // return redis.hsetnx(hash, 'username', '' )
-        //   .then(function(res) {
-        //     return res === 0 ? '' : redis.hmset(USERS + user.username.toLowerCase(), user);
-        //   })
-        //   .then(function(res) {
-        //     return res === 'OK';
-        //   });
+          .hmget(hash, 'username')
+          .then(res => res[0] === null ?
+            redis
+              .multi()
+              .hmset(hash, user)
+              .exec()
+              .then(res => res !== null || throwError(redis, 'User creation lock error'))
+            : throwError(redis, 'User name already taken'));
       });
     },
     update: function(user, username) {
@@ -74,14 +49,20 @@ module.exports = (redis) => ({
         assert(username, 'missing username');
         encryptPassword(user);
         username = username.toLowerCase();
-        return redis.hgetall(USERS + username)
-          .then(function(record) {
-            assert(record.username && record.username.toLowerCase() === username, 'user not found');
+        const hash = USERS + username;
+        redis.watch(hash);
+        return redis.hgetall(hash)
+          .then((record) => {
+            const found = record.username && record.username.toLowerCase() === username;
+            if (!found) {
+              throwError(redis, 'User not found');
+            }
             record = Object.assign(record, user);
-            return redis.hmset(USERS + username, record)
-              .then(function(res) {
-                return res === 'OK';
-              });
+            return redis
+              .multi()
+              .hmset(hash, record)
+              .exec()
+              .then((res) => res !== null || throwError(redis, 'User update lock error'));
           });
       });
     },
@@ -92,6 +73,9 @@ module.exports = (redis) => ({
         });
     }
   },
+  //todo transaction for roles
+  //todo always throw on error
+  //todo use email as secondary key
   roles: {
     get: function(name) {
       var key = ROLES + name.toLowerCase();
@@ -237,7 +221,7 @@ function aclToSet(acl) {
   var set = [];
   acl.forEach(function(aci) {
     if (typeof aci === 'string') {
-      aci = {resource: aci};
+      aci = { resource: aci };
     }
     assert(aci.resource, 'Resource must be informed');
     aci.methods = aci.methods || ['*'];

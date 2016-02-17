@@ -26,21 +26,21 @@ describe('Users', function() {
     authDb.users.create({
       username: 'Owner'
     }).then(function() {
-      done(new Error('Invalid user'))
+      done(new Error('Invalid user'));
     }).catch(function(err) {
-      err.message.should.equal('missing password');
+      err.message.should.equal('Missing password');
       done();
-    });
+    }).catch(done);
   });
   it('should not update a non existent user', function(done) {
     authDb.users.update({
       username: 'jose'
     }, 'jose').then(function() {
-      done(new Error('Invalid update'))
+      done(new Error('Invalid update'));
     }).catch(function(err) {
-      err.message.should.equal('user not found');
+      err.message.should.equal('User not found');
       done();
-    });
+    }).catch(done);
   });
   it('should create user Andre', function(done) {
     authDb.users.create({
@@ -51,18 +51,29 @@ describe('Users', function() {
     }).then(function(res) {
       res.should.be.true;
       done();
+    }).catch(done);
+  });
+  it('should not create user Andre, already created', function(done) {
+    authDb.users.create({
+      username: 'ANDRE',
+      password: '12345678',
+      firstName: 'ARG',
+      roles: ['admin']
+    }).then(function() {
+      done(new Error('Invalid record created'));
     }).catch(function(err) {
-      done(err);
-    });
+      expect(err.message).to.equal('User name already taken');
+      done();
+    }).catch(done);
   });
   it('Should read field roles as an array', function(done) {
     authDb.users.get('andre').then(function(user) {
       expect(user.roles).to.be.a('array');
       expect(user.roles.length).to.equal(1);
+      expect(user.roles).to.eql(['none']);
+      expect(user.firstName).to.equal('André');
       done();
-    }).catch(function(err) {
-      done(err);
-    });
+    }).catch(done);
   });
   it('should update user Andre', function(done) {
     authDb.users.update({
@@ -74,9 +85,7 @@ describe('Users', function() {
     }, 'andre').then(function(res) {
       res.should.be.true;
       done();
-    }).catch(function(err) {
-      done(err);
-    });
+    }).catch(done);
   });
   it('should read all fields of user Andre', function(done) {
     authDb.users.get('andre').then(function(user) {
@@ -98,9 +107,7 @@ describe('Users', function() {
     }).then(res => {
       expect(res).to.equal(true);
       done();
-    }).catch(function(err) {
-      done(err);
-    });
+    }).catch(done);
   });
 });
 
@@ -425,7 +432,7 @@ describe('Permission check benchmark', function() {
     }
     promises.then(function() {
       let final = new Date();
-      expect(final.getTime() - initial.getTime()).to.be.below(500);
+      expect(final.getTime() - initial.getTime()).to.be.below(600);
       done();
     }).catch(function(err) {
       done(err);
