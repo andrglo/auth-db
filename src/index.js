@@ -26,10 +26,47 @@ module.exports = (redis) => ({
         assert(user.username, 'missing username');
         assert(user.password, 'missing password');
         encryptPassword(user);
-        return redis.hmset(USERS + user.username.toLowerCase(), user)
+        const hash = USERS + user.username.toLowerCase();
+        return redis
+          .multi()
+          .watch(hash)
+          .hsetnx(hash, 'username', '' )
+          .hsetnx(hash, 'username', '' )
+          .exec()
+          .then(function(res) {
+            console.log('res-1', res)
+            return res === 0 ? '' : redis.hmset(USERS + user.username.toLowerCase(), user);
+          })
           .then(function(res) {
             return res === 'OK';
           });
+        // var abc = redis
+        //   .multi()
+        //   .watch(hash)
+        //   ;
+        // return new Promise((resolve, reject) => {
+        //   setTimeout(() => {
+        //     return abc.exec()
+        //       .then(function(res) {
+        //         console.log('res-1', res)
+        //         if (res[0] === null) {
+        //           return
+        //           resolve(redis.hmset(USERS + user.username.toLowerCase(), user))
+        //         } else {
+        //           reject('NOOK')
+        //         }
+        //         return '';
+        //       })
+        //   }, 1000)
+        // });
+
+        // return redis.hsetnx(hash, 'username', '' )
+        //   .then(function(res) {
+        //     return res === 0 ? '' : redis.hmset(USERS + user.username.toLowerCase(), user);
+        //   })
+        //   .then(function(res) {
+        //     return res === 'OK';
+        //   });
       });
     },
     update: function(user, username) {
