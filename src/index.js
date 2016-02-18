@@ -4,9 +4,11 @@ var assert = require('assert');
 var crypto = require('crypto');
 var clone = require('clone');
 var cuid = require('cuid');
+var co = require('co');
 
 const MIN_PASSWORD_LENGTH = 6;
 const USERS = 'auth-db:users:';
+const EMAILS = 'auth-db:emails:';
 const ROLES = 'auth-db:roles:';
 const SESSIONS = 'auth-db:sessions:';
 
@@ -15,6 +17,35 @@ module.exports = (redis) => {
   const throwError = (message) => {
     return redis.unwatch().then(() => {
       throw new Error(message);
+    });
+  };
+
+  const saveUser = (key, user) => {
+    return co(function*() {
+
+      let taken;
+      const username = user.username.toLowerCase();
+      const emails = user.email && user.email.toLowerCase().split(',') || [];
+      for (let email of emails) {
+        const key = EMAILS + email.trim();
+        yield redis.watch(key);
+        const emailRecord = yield redis.hgetall(key);
+        if (emailRecord.username && emailRecord.username !== username) {
+          taken = email.trim();
+          break;
+        }
+      }
+      if (taken) {
+        return throwError('Email ' + taken + ' already taken');
+      }
+      let transaction = redis.multi().hmset(key, user);
+      emails.forEach((email) => {
+        const key = EMAILS + email.trim();
+        transaction = transaction.hsetnx(key, 'username', username);
+      });
+
+      const res = yield transaction.exec();
+      return res !== null || throwError('User lock error');
     });
   };
 
@@ -27,7 +58,7 @@ module.exports = (redis) => {
     }
     return transaction
       .exec()
-      .then(res => res !== null || throwError('Role update lock error', res));
+      .then(res => res !== null || throwError('Role lock error', res));
   };
 
   return {
@@ -53,13 +84,7 @@ module.exports = (redis) => {
           return redis.watch(key)
             .then(() => redis
               .hmget(key, 'username')
-              .then(res => res[0] === null ?
-                redis
-                  .multi()
-                  .hmset(key, user)
-                  .exec()
-                  .then(res => res !== null || throwError('User creation lock error'))
-                : throwError('User name already taken')));
+              .then(res => res[0] === null ? saveUser(key, user) : throwError('User name already taken')));
         });
       },
       update: function(user, username) {
@@ -76,11 +101,7 @@ module.exports = (redis) => {
                   return throwError('User not found');
                 }
                 record = Object.assign(record, user);
-                return redis
-                  .multi()
-                  .hmset(key, record)
-                  .exec()
-                  .then((res) => res !== null || throwError('User update lock error'));
+                return saveUser(key, record);
               }));
         });
       },
@@ -89,6 +110,53 @@ module.exports = (redis) => {
           .then(user => {
             return user.password === hashPassword(user.salt, credentials.password);
           });
+      },
+      emails: function(username) {
+        username = username.toLowerCase();
+        return redis.hgetall(USERS + username)
+          .then(user => {
+            return co(function*() {
+              const emailList = user.email && user.email.toLowerCase().split(',') || [];
+              let emails = [];
+              for (let email of emailList) {
+                const key = EMAILS + email.trim();
+                const emailRecord = yield redis.hgetall(key);
+                if (emailRecord.username && emailRecord.username === username) {
+                  emails.push(emailRecord);
+                }
+              }
+              return emails;
+            });
+          });
+      }
+    },
+    email: {
+      get: function(email) {
+        return redis.hgetall(EMAILS + email.toLowerCase());
+      },
+      update: function(data, email) {
+        return Promise.resolve().then(function() {
+          assert(email, 'Missing email');
+          email = email.toLowerCase();
+          const key = EMAILS + email;
+          return redis.watch(key)
+            .then(() => redis.hgetall(key)
+              .then((record) => {
+                const found = record.username;
+                if (!found) {
+                  return throwError('Email not found');
+                }
+                if (record.username !== data.username) {
+                  return throwError('User name is missing or do not match');
+                }
+                record = Object.assign(record, data);
+                return redis
+                    .multi()
+                    .hmset(key, record)
+                    .exec()
+                    .then(res => res !== null || throwError('Email update lock error'));
+              }));
+        });
       }
     },
     roles: {

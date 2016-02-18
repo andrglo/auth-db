@@ -47,6 +47,7 @@ describe('Users', function() {
       username: 'Andre',
       password: '12345678',
       firstName: 'André',
+      email: 'andre@example.com, andre@example2.com ',
       roles: ['none']
     }).then(function(res) {
       res.should.be.true;
@@ -72,6 +73,50 @@ describe('Users', function() {
       expect(user.roles.length).to.equal(1);
       expect(user.roles).to.eql(['none']);
       expect(user.firstName).to.equal('André');
+      done();
+    }).catch(done);
+  });
+  it('Email andre@example.com have been created', function(done) {
+    authDb.email.get('andre@example.com').then(function(email) {
+      expect(email.username).to.equal('andre');
+      done();
+    }).catch(done);
+  });
+  it('Email andre@example2.com have been created', function(done) {
+    authDb.email.get('andre@example.com').then(function(email) {
+      expect(email.username).to.equal('andre');
+      done();
+    }).catch(done);
+  });
+  it('Email andre@example.com can have any property', function(done) {
+    authDb.email.update({
+      username: 'andre',
+      verified: '2016-02-18'
+    }, 'andre@example.com').then(function(res) {
+      res.should.be.true;
+      done();
+    }).catch(done);
+  });
+  it('Email andre@example.com has verified date property', function(done) {
+    authDb.email.get('andre@example.com').then(function(email) {
+      expect(email.verified).to.equal('2016-02-18');
+      done();
+    }).catch(done);
+  });
+  it('Email andre@example.com cannot be updated without sending the username', function(done) {
+    authDb.email.update({ verified: '2016-02-19' }, 'andre@example.com').then(function(res) {
+      done(new Error('Invalid email update'));
+    }).catch((e) => {
+      expect(e.message).to.equal('User name is missing or do not match');
+      done();
+    });
+  });
+  it('All emails and related data can be fetched', function(done) {
+    authDb.users.emails('andre').then(function(emails) {
+      expect(emails).to.eql([
+        { username: 'andre', verified: '2016-02-18' },
+        { username: 'andre' }
+      ]);
       done();
     }).catch(done);
   });
@@ -233,13 +278,13 @@ describe('Roles', function() {
     }).catch(done);
   });
   it('Role mArketing in a array should have permission to habilis/cadastro post', function(done) {
-    authDb.roles.hasPermission(['a', 'b', 'c',  'mArketing', 'd'], 'habilis/cadastro', 'post').then(function(allowed) {
+    authDb.roles.hasPermission(['a', 'b', 'c', 'mArketing', 'd'], 'habilis/cadastro', 'post').then(function(allowed) {
       allowed.should.equal(true);
       done();
     }).catch(done);
   });
   it('Role mArketing in a array should have permission to habilis/cadastro post - last position', function(done) {
-    authDb.roles.hasPermission(['a', 'b', 'c',  'mArketing'], 'habilis/cadastro', 'post').then(function(allowed) {
+    authDb.roles.hasPermission(['a', 'b', 'c', 'mArketing'], 'habilis/cadastro', 'post').then(function(allowed) {
       allowed.should.equal(true);
       done();
     }).catch(done);
