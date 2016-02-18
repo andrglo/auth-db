@@ -2,6 +2,7 @@
 
 var assert = require('assert');
 var crypto = require('crypto');
+var clone = require('clone');
 var cuid = require('cuid');
 
 const MIN_PASSWORD_LENGTH = 6;
@@ -47,7 +48,7 @@ module.exports = (redis) => {
         return Promise.resolve().then(function() {
           assert(user.username, 'Missing username');
           assert(user.password, 'Missing password');
-          encryptPassword(user);
+          user = encryptPassword(user);
           const key = USERS + user.username.toLowerCase();
           return redis.watch(key)
             .then(() => redis
@@ -63,8 +64,8 @@ module.exports = (redis) => {
       },
       update: function(user, username) {
         return Promise.resolve().then(function() {
-          assert(username, 'missing username');
-          encryptPassword(user);
+          assert(username, 'Missing username');
+          user = encryptPassword(user);
           username = username.toLowerCase();
           const key = USERS + username;
           return redis.watch(key)
@@ -90,9 +91,6 @@ module.exports = (redis) => {
           });
       }
     },
-    //todo always throw on error
-    //todo use email as secondary key
-    //todo arguments are immutable
     roles: {
       get: function(name) {
         var key = ROLES + name.toLowerCase();
@@ -112,6 +110,7 @@ module.exports = (redis) => {
         return Promise.resolve().then(function() {
           assert(role.name, 'Role name is missing');
           assert(role.acl === void 0 || Array.isArray(role.acl), 'acl must be an array');
+          role = clone(role);
           var acl = role.acl;
           delete role.acl;
           var key = ROLES + role.name.toLowerCase();
@@ -128,6 +127,7 @@ module.exports = (redis) => {
         return Promise.resolve().then(function() {
           assert(name, 'Role name is missing');
           assert(role.acl === void 0 || Array.isArray(role.acl), 'acl must be an array');
+          role = clone(role);
           var acl = role.acl;
           delete role.acl;
           name = name.toLowerCase();
@@ -205,12 +205,13 @@ module.exports = (redis) => {
  * @param user
  */
 function encryptPassword(user) {
-  if (!user.password) {
-    return;
+  if (user.password) {
+    assert(user.password.length >= MIN_PASSWORD_LENGTH, 'password should have a minimum of ' + MIN_PASSWORD_LENGTH + ' characters');
+    user = clone(user);
+    user.salt = crypto.randomBytes(16).toString('base64');
+    user.password = hashPassword(user.salt, user.password);
   }
-  assert(user.password.length >= MIN_PASSWORD_LENGTH, 'password should have a minimum of ' + MIN_PASSWORD_LENGTH + ' characters');
-  user.salt = crypto.randomBytes(16).toString('base64');
-  user.password = hashPassword(user.salt, user.password);
+  return user;
 }
 
 /**
