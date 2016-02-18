@@ -8,8 +8,9 @@ const ROLES = 'auth-db:roles:';
 const SESSIONS = 'auth-db:sessions:';
 
 const throwError = (redis, message) => {
-  redis.unwatch();
-  throw new Error(message);
+  return redis.unwatch().then(() => {
+    throw new Error(message)
+  });
 };
 
 module.exports = (redis) => ({
@@ -32,16 +33,16 @@ module.exports = (redis) => ({
         assert(user.password, 'Missing password');
         encryptPassword(user);
         const hash = USERS + user.username.toLowerCase();
-        redis.watch(hash);
-        return redis
-          .hmget(hash, 'username')
-          .then(res => res[0] === null ?
-            redis
-              .multi()
-              .hmset(hash, user)
-              .exec()
-              .then(res => res !== null || throwError(redis, 'User creation lock error'))
-            : throwError(redis, 'User name already taken'));
+        return redis.watch(hash)
+          .then(() => redis
+            .hmget(hash, 'username')
+            .then(res => res[0] === null ?
+              redis
+                .multi()
+                .hmset(hash, user)
+                .exec()
+                .then(res => res !== null || throwError(redis, 'User creation lock error'))
+              : throwError(redis, 'User name already taken')));
       });
     },
     update: function(user, username) {
@@ -50,20 +51,20 @@ module.exports = (redis) => ({
         encryptPassword(user);
         username = username.toLowerCase();
         const hash = USERS + username;
-        redis.watch(hash);
-        return redis.hgetall(hash)
-          .then((record) => {
-            const found = record.username && record.username.toLowerCase() === username;
-            if (!found) {
-              throwError(redis, 'User not found');
-            }
-            record = Object.assign(record, user);
-            return redis
-              .multi()
-              .hmset(hash, record)
-              .exec()
-              .then((res) => res !== null || throwError(redis, 'User update lock error'));
-          });
+        return redis.watch(hash)
+          .then(() => redis.hgetall(hash)
+            .then((record) => {
+              const found = record.username && record.username.toLowerCase() === username;
+              if (!found) {
+                return throwError(redis, 'User not found');
+              }
+              record = Object.assign(record, user);
+              return redis
+                .multi()
+                .hmset(hash, record)
+                .exec()
+                .then((res) => res !== null || throwError(redis, 'User update lock error'));
+            }));
       });
     },
     checkPassword: function(credentials) {
