@@ -1,3 +1,5 @@
+'use strict';
+
 var assert = require('assert');
 var crypto = require('crypto');
 var cuid = require('cuid');
@@ -7,189 +9,194 @@ const USERS = 'auth-db:users:';
 const ROLES = 'auth-db:roles:';
 const SESSIONS = 'auth-db:sessions:';
 
-const throwError = (redis, message) => {
-  return redis.unwatch().then(() => {
-    throw new Error(message)
-  });
-};
+module.exports = (redis) => {
 
-module.exports = (redis) => ({
+  const throwError = (message) => {
+    return redis.unwatch().then(() => {
+      throw new Error(message)
+    });
+  };
 
-  users: {
-    get: function(username) {
-      return redis.hgetall(USERS + username.toLowerCase())
-        .then(user => {
-          if (user.roles) {
-            user.roles = user.roles.split(',');
-          }
-          delete user.password;
-          delete user.salt;
-          return user;
-        });
-    },
-    create: function(user) {
-      return Promise.resolve().then(function() {
-        assert(user.username, 'Missing username');
-        assert(user.password, 'Missing password');
-        encryptPassword(user);
-        const hash = USERS + user.username.toLowerCase();
-        return redis.watch(hash)
-          .then(() => redis
-            .hmget(hash, 'username')
-            .then(res => res[0] === null ?
-              redis
-                .multi()
-                .hmset(hash, user)
-                .exec()
-                .then(res => res !== null || throwError(redis, 'User creation lock error'))
-              : throwError(redis, 'User name already taken')));
-      });
-    },
-    update: function(user, username) {
-      return Promise.resolve().then(function() {
-        assert(username, 'missing username');
-        encryptPassword(user);
-        username = username.toLowerCase();
-        const hash = USERS + username;
-        return redis.watch(hash)
-          .then(() => redis.hgetall(hash)
-            .then((record) => {
-              const found = record.username && record.username.toLowerCase() === username;
-              if (!found) {
-                return throwError(redis, 'User not found');
-              }
-              record = Object.assign(record, user);
-              return redis
-                .multi()
-                .hmset(hash, record)
-                .exec()
-                .then((res) => res !== null || throwError(redis, 'User update lock error'));
-            }));
-      });
-    },
-    checkPassword: function(credentials) {
-      return redis.hgetall(USERS + credentials.username.toLowerCase())
-        .then(user => {
-          return user.password === hashPassword(user.salt, credentials.password);
-        });
+  const saveRole = (key, role, acl) => {
+    let transaction = redis.multi().hmset(key, role);
+    if (acl && acl.length > 0) {
+      transaction = transaction
+        .del(key + ':acl')
+        .sadd(key + ':acl', aclToSet(acl))
     }
-  },
-  //todo transaction for roles
-  //todo always throw on error
-  //todo use email as secondary key
-  roles: {
-    get: function(name) {
-      var key = ROLES + name.toLowerCase();
-      return redis.hgetall(key)
-        .then(function(record) {
-          return redis.smembers(key + ':acl')
-            .then(function(res) {
-              if (res) {
-                record.acl = setToAcl(res);
-              }
-              return record;
-            });
+    return transaction
+      .exec()
+      .then(res => res !== null || throwError('Role update lock error', res))
+  };
+
+  return {
+
+    users: {
+      get: function(username) {
+        return redis.hgetall(USERS + username.toLowerCase())
+          .then(user => {
+            if (user.roles) {
+              user.roles = user.roles.split(',');
+            }
+            delete user.password;
+            delete user.salt;
+            return user;
+          });
+      },
+      create: function(user) {
+        return Promise.resolve().then(function() {
+          assert(user.username, 'Missing username');
+          assert(user.password, 'Missing password');
+          encryptPassword(user);
+          const hash = USERS + user.username.toLowerCase();
+          return redis.watch(hash)
+            .then(() => redis
+              .hmget(hash, 'username')
+              .then(res => res[0] === null ?
+                redis
+                  .multi()
+                  .hmset(hash, user)
+                  .exec()
+                  .then(res => res !== null || throwError('User creation lock error'))
+                : throwError('User name already taken')));
         });
+      },
+      update: function(user, username) {
+        return Promise.resolve().then(function() {
+          assert(username, 'missing username');
+          encryptPassword(user);
+          username = username.toLowerCase();
+          const hash = USERS + username;
+          return redis.watch(hash)
+            .then(() => redis.hgetall(hash)
+              .then((record) => {
+                const found = record.username && record.username.toLowerCase() === username;
+                if (!found) {
+                  return throwError('User not found');
+                }
+                record = Object.assign(record, user);
+                return redis
+                  .multi()
+                  .hmset(hash, record)
+                  .exec()
+                  .then((res) => res !== null || throwError('User update lock error'));
+              }));
+        });
+      },
+      checkPassword: function(credentials) {
+        return redis.hgetall(USERS + credentials.username.toLowerCase())
+          .then(user => {
+            return user.password === hashPassword(user.salt, credentials.password);
+          });
+      }
     },
-    create: function(role) {
-      return Promise.resolve().then(function() {
-        assert(role.name, 'missing name');
-        assert(role.acl === void 0 || Array.isArray(role.acl), 'acl must be an array');
-        var acl = role.acl;
-        delete role.acl;
-        var key = ROLES + role.name.toLowerCase();
-        return redis.hmset(key, role)
+    //todo always throw on error
+    //todo use email as secondary key
+    //todo arguments are immutable
+    roles: {
+      get: function(name) {
+        var key = ROLES + name.toLowerCase();
+        return redis.hgetall(key)
+          .then(function(record) {
+            return redis.smembers(key + ':acl')
+              .then(function(res) {
+                if (res) {
+                  record.acl = setToAcl(res);
+                }
+                return record;
+              });
+          });
+      },
+      create: function(role) {
+
+        return Promise.resolve().then(function() {
+          assert(role.name, 'Role name is missing');
+          assert(role.acl === void 0 || Array.isArray(role.acl), 'acl must be an array');
+          var acl = role.acl;
+          delete role.acl;
+          var key = ROLES + role.name.toLowerCase();
+          return redis.watch(key)
+            .then(() => redis
+              .hmget(key, 'name')
+              .then(res => res[0] === null ?
+                saveRole(key, role, acl) :
+                throwError('Role already exists')));
+        });
+      },
+      update: function(role, name) {
+
+        return Promise.resolve().then(function() {
+          assert(name, 'Role name is missing');
+          assert(role.acl === void 0 || Array.isArray(role.acl), 'acl must be an array');
+          var acl = role.acl;
+          delete role.acl;
+          name = name.toLowerCase();
+          var key = ROLES + name;
+          return redis.watch(key)
+            .then(() => redis.hgetall(key)
+              .then((record) => {
+                const found = record.name && record.name.toLowerCase() === name;
+                if (!found) {
+                  return throwError('Role not found');
+                }
+                record = Object.assign(record, role);
+                return saveRole(key, record, acl);
+              }));
+        });
+      },
+      hasPermission: function(roles, resource, method) {
+
+        var checkRole = name => {
+          if (typeof name !== 'string') {
+            return false;
+          }
+          var key = ROLES + name.toLowerCase() + ':acl';
+          return typeof method === 'string' ?
+            redis.sismember(key, resource + method.toUpperCase())
+              .then(res => res || redis.sismember(key, resource + '*'))
+              .then(res => res === 1) :
+            redis.sismember(key, resource + '*')
+              .then(res => res === 1);
+        };
+
+        resource = resource.toLowerCase() + ':';
+        roles = Array.isArray(roles) ? roles : [roles];
+
+        return roles.reduce((promise, role) =>
+          promise.then(res =>
+            res === true ? res : checkRole(role)), Promise.resolve(false));
+
+      }
+    },
+    sessions: {
+      get: function(id) {
+        return redis.hgetall(SESSIONS + id);
+      },
+      create: function(expiresInSeconds, data) {
+        var id = cuid();
+        var key = SESSIONS + id;
+        return redis.hmset(key, data)
           .then(function(res) {
-            if (acl && acl.length > 0) {
-              return redis.sadd(key + ':acl', aclToSet(acl))
+            if (expiresInSeconds) {
+              return redis.expire(key, expiresInSeconds)
                 .then(function(res) {
-                  return res > 0;
+                  return res === 1 ? id : null;
                 });
             }
-            return res === 'OK';
+            return res === 'OK' ? id : null;
           });
-      });
-    },
-    update: function(role, name) {
-      return Promise.resolve().then(function() {
-        assert(name, 'missing name');
-        assert(role.acl === void 0 || Array.isArray(role.acl), 'acl must be an array');
-        var acl = role.acl;
-        delete role.acl;
-        name = name.toLowerCase();
-        return redis.hgetall(ROLES + name)
-          .then(function(record) {
-            assert(record.name && record.name.toLowerCase() === name, 'role not found');
-            record = Object.assign(record, role);
-            var key = ROLES + name;
-            return redis.hmset(key, record)
-              .then(function(res) {
-                if (acl && acl.length > 0) {
-                  return redis.del(key + ':acl')
-                    .then(function() {
-                      return redis.sadd(key + ':acl', aclToSet(acl))
-                        .then(function(res) {
-                          return res > 0;
-                        });
-                    });
-                }
-                return res === 'OK';
-              });
+      },
+      destroy: function(id) {
+        assert(typeof id === 'string', 'session id must be a string');
+        return redis.del(SESSIONS + id)
+          .then(function(res) {
+            return res === 1;
           });
-      });
-    },
-    hasPermission: function(roles, resource, method) {
-
-      var checkRole = name => {
-        if (typeof name !== 'string') {
-          return false;
-        }
-        var key = ROLES + name.toLowerCase() + ':acl';
-        return typeof method === 'string' ?
-          redis.sismember(key, resource + method.toUpperCase())
-            .then(res => res || redis.sismember(key, resource + '*'))
-            .then(res => res === 1) :
-          redis.sismember(key, resource + '*')
-            .then(res => res === 1);
-      };
-
-      resource = resource.toLowerCase() + ':';
-      roles = Array.isArray(roles) ? roles : [roles];
-
-      return roles.reduce((promise, role) =>
-        promise.then(res =>
-          res === true ? res : checkRole(role)), Promise.resolve(false));
-
+      }
     }
-  },
-  sessions: {
-    get: function(id) {
-      return redis.hgetall(SESSIONS + id);
-    },
-    create: function(expiresInSeconds, data) {
-      var id = cuid();
-      var key = SESSIONS + id;
-      return redis.hmset(key, data)
-        .then(function(res) {
-          if (expiresInSeconds) {
-            return redis.expire(key, expiresInSeconds)
-              .then(function(res) {
-                return res === 1 ? id : null;
-              });
-          }
-          return res === 'OK' ? id : null;
-        });
-    },
-    destroy: function(id) {
-      assert(typeof id === 'string', 'session id must be a string');
-      return redis.del(SESSIONS + id)
-        .then(function(res) {
-          return res === 1;
-        });
-    }
+
   }
-
-});
+};
 
 /**
  * Encrypt password

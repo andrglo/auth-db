@@ -60,7 +60,7 @@ describe('Users', function() {
       firstName: 'ARG',
       roles: ['admin']
     }).then(function() {
-      done(new Error('Invalid record created'));
+      done(new Error('Invalid user created'));
     }).catch(function(err) {
       expect(err.message).to.equal('User name already taken');
       done();
@@ -118,9 +118,9 @@ describe('Roles', function() {
     }).then(function() {
       done(new Error('Invalid role'))
     }).catch(function(err) {
-      err.message.should.equal('missing name');
+      err.message.should.equal('Role name is missing');
       done();
-    });
+    }).catch(done);
   });
   it('should not update a non existent role', function(done) {
     authDb.roles.update({
@@ -128,9 +128,9 @@ describe('Roles', function() {
     }, 'role').then(function() {
       done(new Error('Invalid update'))
     }).catch(function(err) {
-      err.message.should.equal('role not found');
+      err.message.should.equal('Role not found');
       done();
-    });
+    }).catch(done);
   });
   it('should create role without acl', function(done) {
     authDb.roles.create({
@@ -138,9 +138,7 @@ describe('Roles', function() {
     }).then(function(res) {
       res.should.be.true;
       done();
-    }).catch(function(err) {
-      done(err);
-    });
+    }).catch(done);
   });
   it('should create role Marketing', function(done) {
     authDb.roles.create({
@@ -153,14 +151,27 @@ describe('Roles', function() {
     }).then(function(res) {
       res.should.be.true;
       done();
+    }).catch(done);
+  });
+  it('should not recreate role Marketing', function(done) {
+    authDb.roles.create({
+      name: 'MARKETING',
+      description: 'Sell',
+      acl: ['any', {
+        resource: 'habilis/other',
+        methods: ['get']
+      }]
+    }).then(function() {
+      done(new Error('Invalid role created'));
     }).catch(function(err) {
-      done(err);
-    });
+      expect(err.message).to.equal('Role already exists');
+      done();
+    }).catch(done);
   });
   it('should read all fields of role Marketing', function(done) {
     authDb.roles.get('mArketing').then(function(role) {
       role.should.have.property('name');
-      role.should.have.property('description');
+      role.description.should.equal('Do the marketing');
       role.name.should.equal('Marketing');
       let resource1, resource2;
       role.acl.map(function(aci) {
@@ -183,89 +194,67 @@ describe('Roles', function() {
       expect(resource1).to.equal(true);
       expect(resource2).to.equal(true);
       done();
-    }).catch(function(err) {
-      done(err);
-    });
+    }).catch(done);
   });
   it('Marketing should have permission to spec any', function(done) {
     authDb.roles.hasPermission('mArketing', 'spec', 'any').then(function(allowed) {
       allowed.should.equal(true);
       done();
-    }).catch(function(err) {
-      done(err);
-    });
+    }).catch(done);
   });
   it('Marketing should have permission to spec', function(done) {
     authDb.roles.hasPermission('mArketing', 'spec').then(function(allowed) {
       allowed.should.equal(true);
       done();
-    }).catch(function(err) {
-      done(err);
-    });
+    }).catch(done);
   });
   it('Marketing should not have permission to spec2', function(done) {
     authDb.roles.hasPermission('mArketing', 'spec2').then(function(allowed) {
       allowed.should.equal(false);
       done();
-    }).catch(function(err) {
-      done(err);
-    });
+    }).catch(done);
   });
   it('Marketing should not have permission to habilis/cadastro get', function(done) {
     authDb.roles.hasPermission('mArketing', 'habilis/cadastro', 'get').then(function(allowed) {
       allowed.should.equal(false);
       done();
-    }).catch(function(err) {
-      done(err);
-    });
+    }).catch(done);
   });
   it('nor to habilis/cadastro', function(done) {
     authDb.roles.hasPermission('mArketing', 'habilis/cadastro').then(function(allowed) {
       allowed.should.equal(false);
       done();
-    }).catch(function(err) {
-      done(err);
-    });
+    }).catch(done);
   });
   it('but do to habilis/cadastro post', function(done) {
     authDb.roles.hasPermission('mArketing', 'habilis/cadastro', 'post').then(function(allowed) {
       allowed.should.equal(true);
       done();
-    }).catch(function(err) {
-      done(err);
-    });
+    }).catch(done);
   });
   it('Role mArketing in a array should have permission to habilis/cadastro post', function(done) {
     authDb.roles.hasPermission(['a', 'b', 'c',  'mArketing', 'd'], 'habilis/cadastro', 'post').then(function(allowed) {
       allowed.should.equal(true);
       done();
-    }).catch(function(err) {
-      done(err);
-    });
+    }).catch(done);
   });
   it('Role mArketing in a array should have permission to habilis/cadastro post - last position', function(done) {
     authDb.roles.hasPermission(['a', 'b', 'c',  'mArketing'], 'habilis/cadastro', 'post').then(function(allowed) {
       allowed.should.equal(true);
       done();
-    }).catch(function(err) {
-      done(err);
-    });
+    }).catch(done);
   });
   it('Role mArketing if not in the array should should not have permission to habilis/cadastro post', function(done) {
     authDb.roles.hasPermission(['a', 'b', 'c'], 'habilis/cadastro', 'post').then(function(allowed) {
       allowed.should.equal(false);
       done();
-    }).catch(function(err) {
-      done(err);
-    });
+    }).catch(done);
   });
   it('Role undefined should be rejected', function(done) {
     authDb.roles.hasPermission([void 0], 'habilis/cadastro', 'post').then(function(allowed) {
       allowed.should.equal(false);
       done();
-    }).catch(function(err) {
-      done(err);
-    });
+    }).catch(done);
   });
   it('should update role Marketing', function(done) {
     authDb.roles.update({
@@ -281,9 +270,7 @@ describe('Roles', function() {
     }, 'marketing').then(function(res) {
       res.should.be.true;
       done();
-    }).catch(function(err) {
-      done(err);
-    });
+    }).catch(done);
   });
   it('lets check all fields of role Marketing', function(done) {
     authDb.roles.get('mArketing').then(function(role) {
@@ -313,9 +300,7 @@ describe('Roles', function() {
       expect(resource1).to.equal(true);
       expect(resource2).to.equal(true);
       done();
-    }).catch(function(err) {
-      done(err);
-    });
+    }).catch(done);
   });
 });
 
@@ -324,9 +309,7 @@ describe('Sessions', function() {
     authDb.sessions.get('1').then(function(res) {
       expect(res).to.deep.equal({});
       done()
-    }).catch(function(err) {
-      done(err);
-    })
+    }).catch(done)
   });
   var session;
   it('should create a new session valid for 1 second', function(done) {
@@ -338,9 +321,7 @@ describe('Sessions', function() {
       setTimeout(function() {
         done();
       }, 500);
-    }).catch(function(err) {
-      done(err);
-    });
+    }).catch(done);
   });
   it('should exists yet', function(done) {
     authDb.sessions.get(session).then(function(res) {
@@ -348,17 +329,13 @@ describe('Sessions', function() {
       setTimeout(function() {
         done()
       }, 500);
-    }).catch(function(err) {
-      done(err);
-    });
+    }).catch(done);
   });
   it('now should have gone', function(done) {
     authDb.sessions.get(session).then(function(res) {
       expect(res).to.deep.equal({});
       done()
-    }).catch(function(err) {
-      done(err);
-    });
+    }).catch(done);
   });
   it('should create a new session valid for 1 minute', function(done) {
     authDb.sessions.create(60, {
@@ -367,33 +344,25 @@ describe('Sessions', function() {
       expect(res).to.be.a('string');
       session = res;
       done();
-    }).catch(function(err) {
-      done(err);
-    });
+    }).catch(done);
   });
   it('ok, created', function(done) {
     authDb.sessions.get(session).then(function(res) {
       expect(res.username === 'andre').to.equal(true);
       done();
-    }).catch(function(err) {
-      done(err);
-    });
+    }).catch(done);
   });
   it('but if I delete it', function(done) {
     authDb.sessions.destroy(session).then(function(res) {
       res.should.be.true;
       done();
-    }).catch(function(err) {
-      done(err);
-    });
+    }).catch(done);
   });
   it('now should have gone', function(done) {
     authDb.sessions.get(session).then(function(res) {
       expect(res).to.deep.equal({});
       done()
-    }).catch(function(err) {
-      done(err);
-    });
+    }).catch(done);
   });
 });
 
@@ -434,9 +403,7 @@ describe('Permission check benchmark', function() {
       let final = new Date();
       expect(final.getTime() - initial.getTime()).to.be.below(600);
       done();
-    }).catch(function(err) {
-      done(err);
-    });
+    }).catch(done);
   });
 });
 
