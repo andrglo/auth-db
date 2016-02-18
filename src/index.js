@@ -14,7 +14,7 @@ module.exports = (redis) => {
 
   const throwError = (message) => {
     return redis.unwatch().then(() => {
-      throw new Error(message)
+      throw new Error(message);
     });
   };
 
@@ -23,11 +23,11 @@ module.exports = (redis) => {
     if (acl && acl.length > 0) {
       transaction = transaction
         .del(key + ':acl')
-        .sadd(key + ':acl', aclToSet(acl))
+        .sadd(key + ':acl', aclToSet(acl));
     }
     return transaction
       .exec()
-      .then(res => res !== null || throwError('Role update lock error', res))
+      .then(res => res !== null || throwError('Role update lock error', res));
   };
 
   return {
@@ -195,7 +195,7 @@ module.exports = (redis) => {
       }
     }
 
-  }
+  };
 };
 
 /**
