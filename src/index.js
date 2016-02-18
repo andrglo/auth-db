@@ -48,14 +48,14 @@ module.exports = (redis) => {
           assert(user.username, 'Missing username');
           assert(user.password, 'Missing password');
           encryptPassword(user);
-          const hash = USERS + user.username.toLowerCase();
-          return redis.watch(hash)
+          const key = USERS + user.username.toLowerCase();
+          return redis.watch(key)
             .then(() => redis
-              .hmget(hash, 'username')
+              .hmget(key, 'username')
               .then(res => res[0] === null ?
                 redis
                   .multi()
-                  .hmset(hash, user)
+                  .hmset(key, user)
                   .exec()
                   .then(res => res !== null || throwError('User creation lock error'))
                 : throwError('User name already taken')));
@@ -66,9 +66,9 @@ module.exports = (redis) => {
           assert(username, 'missing username');
           encryptPassword(user);
           username = username.toLowerCase();
-          const hash = USERS + username;
-          return redis.watch(hash)
-            .then(() => redis.hgetall(hash)
+          const key = USERS + username;
+          return redis.watch(key)
+            .then(() => redis.hgetall(key)
               .then((record) => {
                 const found = record.username && record.username.toLowerCase() === username;
                 if (!found) {
@@ -77,7 +77,7 @@ module.exports = (redis) => {
                 record = Object.assign(record, user);
                 return redis
                   .multi()
-                  .hmset(hash, record)
+                  .hmset(key, record)
                   .exec()
                   .then((res) => res !== null || throwError('User update lock error'));
               }));
