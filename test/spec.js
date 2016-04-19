@@ -114,8 +114,8 @@ describe('Users', function() {
   it('All emails and related data can be fetched', function(done) {
     authDb.users.emails('andre').then(function(emails) {
       expect(emails).to.eql([
-        { username: 'andre', verified: '2016-02-18' },
-        { username: 'andre' }
+        { email: 'andre@example.com', username: 'andre', verified: '2016-02-18' },
+        { email: 'andre@example2.com', username: 'andre' }
       ]);
       done();
     }).catch(done);

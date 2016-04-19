@@ -119,10 +119,11 @@ module.exports = (redis) => {
               const emailList = user.email && user.email.toLowerCase().split(',') || [];
               let emails = [];
               for (let email of emailList) {
-                const key = EMAILS + email.trim();
+                email = email.trim();
+                const key = EMAILS + email;
                 const emailRecord = yield redis.hgetall(key);
                 if (emailRecord.username && emailRecord.username === username) {
-                  emails.push(emailRecord);
+                  emails.push(Object.assign({}, emailRecord, { email }));
                 }
               }
               return emails;
