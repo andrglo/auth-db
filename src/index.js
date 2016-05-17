@@ -12,7 +12,15 @@ const EMAILS = 'auth-db:emails:';
 const ROLES = 'auth-db:roles:';
 const SESSIONS = 'auth-db:sessions:';
 
-module.exports = (redis) => {
+module.exports = (redis, options) => {
+
+  options = options || {};
+  options = {
+    saltLength: options.saltLength || 16,
+    iterations: options.iterations || 10000,
+    keylen: options.keylen || 64,
+    digest: options.digest || 'sha1'
+  };
 
   const throwError = (message) => {
     return redis.unwatch().then(() => {
@@ -79,7 +87,7 @@ module.exports = (redis) => {
         return Promise.resolve().then(function() {
           assert(user.username, 'Missing username');
           assert(user.password, 'Missing password');
-          return encryptPassword(user).then(() => {
+          return encryptPassword(user, options).then(() => {
             const key = USERS + user.username.toLowerCase();
             return redis.watch(key)
               .then(() => redis
@@ -91,7 +99,7 @@ module.exports = (redis) => {
       update: function(user, username) {
         return Promise.resolve().then(function() {
           assert(username, 'Missing username');
-          return encryptPassword(user).then((user) => {
+          return encryptPassword(user, options).then((user) => {
             username = username.toLowerCase();
             const key = USERS + username;
             return redis.watch(key)
@@ -109,7 +117,7 @@ module.exports = (redis) => {
       },
       checkPassword: function(credentials) {
         return redis.hgetall(USERS + credentials.username.toLowerCase())
-          .then(user => hashPassword(credentials.password, user.salt)
+          .then(user => hashPassword(credentials.password, user.salt, options)
             .then(password => password === user.password));
       },
       emails: function(username) {
@@ -270,18 +278,15 @@ module.exports = (redis) => {
 
 /**
  * Encrypt password
- *
- * @private
- * @param user
  */
-function encryptPassword(user) {
+function encryptPassword(user, options) {
   return Promise.resolve()
     .then(() => {
       if (user.password) {
         assert(user.password.length >= MIN_PASSWORD_LENGTH, 'password should have a minimum of ' + MIN_PASSWORD_LENGTH + ' characters');
         user = clone(user);
-        user.salt = crypto.randomBytes(16).toString('base64');
-        return hashPassword(user.password, user.salt).then(password => {
+        user.salt = crypto.randomBytes(options.saltLength).toString('base64');
+        return hashPassword(user.password, user.salt, options).then(password => {
           user.password = password;
           return user;
         });
@@ -293,9 +298,9 @@ function encryptPassword(user) {
 /**
  * Hash password
  */
-function hashPassword(password, salt) {
+function hashPassword(password, salt, options) {
   return new Promise((resolve, reject) => {
-    crypto.pbkdf2(password, salt, 100000, 512, 'sha512', (error, key) => {
+    crypto.pbkdf2(password, salt, options.iterations, options.keylen, options.digest, (error, key) => {
       if (error) {
         return reject(error);
       }

@@ -13,7 +13,12 @@ var redis = new Redis({
   db: process.env.REDIS_DATABASE || 0
 });
 
-var authDb = require('../src')(redis);
+var authDb = require('../src')(redis, {
+  saltLength: 32,
+  iterations: 100000,
+  keylen: 512,
+  digest: 'sha512'
+});
 
 var log = console.log;
 
