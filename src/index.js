@@ -79,37 +79,38 @@ module.exports = (redis) => {
         return Promise.resolve().then(function() {
           assert(user.username, 'Missing username');
           assert(user.password, 'Missing password');
-          user = encryptPassword(user);
-          const key = USERS + user.username.toLowerCase();
-          return redis.watch(key)
-            .then(() => redis
-              .hmget(key, 'username')
-              .then(res => res[0] === null ? saveUser(key, user) : throwError('User name already taken')));
+          return encryptPassword(user).then(() => {
+            const key = USERS + user.username.toLowerCase();
+            return redis.watch(key)
+              .then(() => redis
+                .hmget(key, 'username')
+                .then(res => res[0] === null ? saveUser(key, user) : throwError('User name already taken')));
+          });
         });
       },
       update: function(user, username) {
         return Promise.resolve().then(function() {
           assert(username, 'Missing username');
-          user = encryptPassword(user);
-          username = username.toLowerCase();
-          const key = USERS + username;
-          return redis.watch(key)
-            .then(() => redis.hgetall(key)
-              .then((record) => {
-                const found = record.username && record.username.toLowerCase() === username;
-                if (!found) {
-                  return throwError('User not found');
-                }
-                record = Object.assign(record, user);
-                return saveUser(key, record);
-              }));
+          return encryptPassword(user).then((user) => {
+            username = username.toLowerCase();
+            const key = USERS + username;
+            return redis.watch(key)
+              .then(() => redis.hgetall(key)
+                .then((record) => {
+                  const found = record.username && record.username.toLowerCase() === username;
+                  if (!found) {
+                    return throwError('User not found');
+                  }
+                  record = Object.assign(record, user);
+                  return saveUser(key, record);
+                }));
+          });
         });
       },
       checkPassword: function(credentials) {
         return redis.hgetall(USERS + credentials.username.toLowerCase())
-          .then(user => {
-            return user.password === hashPassword(user.salt, credentials.password);
-          });
+          .then(user => hashPassword(credentials.password, user.salt)
+            .then(password => password === user.password));
       },
       emails: function(username) {
         username = username.toLowerCase();
@@ -152,10 +153,10 @@ module.exports = (redis) => {
                 }
                 record = Object.assign(record, data);
                 return redis
-                    .multi()
-                    .hmset(key, record)
-                    .exec()
-                    .then(res => res !== null || throwError('Email update lock error'));
+                  .multi()
+                  .hmset(key, record)
+                  .exec()
+                  .then(res => res !== null || throwError('Email update lock error'));
               }));
         });
       }
@@ -274,25 +275,33 @@ module.exports = (redis) => {
  * @param user
  */
 function encryptPassword(user) {
-  if (user.password) {
-    assert(user.password.length >= MIN_PASSWORD_LENGTH, 'password should have a minimum of ' + MIN_PASSWORD_LENGTH + ' characters');
-    user = clone(user);
-    user.salt = crypto.randomBytes(16).toString('base64');
-    user.password = hashPassword(user.salt, user.password);
-  }
-  return user;
+  return Promise.resolve()
+    .then(() => {
+      if (user.password) {
+        assert(user.password.length >= MIN_PASSWORD_LENGTH, 'password should have a minimum of ' + MIN_PASSWORD_LENGTH + ' characters');
+        user = clone(user);
+        user.salt = crypto.randomBytes(16).toString('base64');
+        return hashPassword(user.password, user.salt).then(password => {
+          user.password = password;
+          return user;
+        });
+      }
+      return user;
+    });
 }
 
 /**
  * Hash password
- *
- * @private
- * @param salt
- * @param password
- * @returns {*|string}
  */
-function hashPassword(salt, password) {
-  return crypto.pbkdf2Sync(password, salt, 10000, 64).toString('base64');
+function hashPassword(password, salt) {
+  return new Promise((resolve, reject) => {
+    crypto.pbkdf2(password, salt, 100000, 512, 'sha512', (error, key) => {
+      if (error) {
+        return reject(error);
+      }
+      resolve(key.toString('base64'));
+    });
+  });
 }
 
 function aclToSet(acl) {
