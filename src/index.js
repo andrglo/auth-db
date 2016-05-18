@@ -87,7 +87,7 @@ module.exports = (redis, options) => {
         return Promise.resolve().then(function() {
           assert(user.username, 'Missing username');
           assert(user.password, 'Missing password');
-          return encryptPassword(user, options).then(() => {
+          return encryptPassword(user, options).then((user) => {
             const key = USERS + user.username.toLowerCase();
             return redis.watch(key)
               .then(() => redis

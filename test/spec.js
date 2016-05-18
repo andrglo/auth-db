@@ -56,6 +56,12 @@ describe('Users', function() {
       roles: ['none']
     }).then(function(res) {
       res.should.be.true;
+      return authDb.users.checkPassword({
+        password: '12345678',
+        username: 'Andre'
+      });
+    }).then(res => {
+      expect(res).to.equal(true);
       done();
     }).catch(done);
   });
