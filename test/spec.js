@@ -47,6 +47,20 @@ describe('Users', function() {
       done();
     }).catch(done);
   });
+  it('should not create user Andre, invalid email', function(done) {
+    authDb.users.create({
+      username: 'Andre',
+      password: '12345678',
+      firstName: 'André',
+      email: 'andre@example.com, andre:example2.com ',
+      roles: ['none']
+    }).then(function() {
+      done(new Error('User created with invalid email'));
+    }).catch(function(err) {
+      err.message.should.equal('Email andre:example2.com is invalid');
+      done();
+    }).catch(done);
+  });
   it('should create user Andre', function(done) {
     authDb.users.create({
       username: 'Andre',
@@ -99,18 +113,36 @@ describe('Users', function() {
       done();
     }).catch(done);
   });
+  it('Email andre@example3.com can be added', function(done) {
+    authDb.email.add('andre@example3.com', 'andre').then(function(res) {
+      res.should.be.true;
+      done();
+    }).catch(done);
+  });
   it('Email andre@example.com can have any property', function(done) {
     authDb.email.update({
       username: 'andre',
-      verified: '2016-02-18'
+      verified: '2016-02-19',
+      where: 'here'
     }, 'andre@example.com').then(function(res) {
       res.should.be.true;
       done();
     }).catch(done);
   });
-  it('Email andre@example.com has verified date property', function(done) {
+  it('Email andre@example.com has verified and where properties', function(done) {
     authDb.email.get('andre@example.com').then(function(email) {
-      expect(email.verified).to.equal('2016-02-18');
+      expect(email.verified).to.equal('2016-02-19');
+      expect(email.where).to.equal('here');
+      done();
+    }).catch(done);
+  });
+  it('Email andre@example.com can have any property modified', function(done) {
+    authDb.email.update({
+      username: 'andre',
+      verified: '2016-02-18',
+      where: null
+    }, 'andre@example.com').then(function(res) {
+      res.should.be.true;
       done();
     }).catch(done);
   });
@@ -120,12 +152,26 @@ describe('Users', function() {
     }).catch((e) => {
       expect(e.message).to.equal('User name is missing or do not match');
       done();
-    });
+    }).catch(done);
+  });
+  it('Email andre@example3.com can be removed', function(done) {
+    authDb.email.remove('andre@example3.com', 'andre').then(function(res) {
+      res.should.be.true;
+      done();
+    }).catch(done);
+  });
+  it('Email andre@example.com cannot be removed due to verified property', function(done) {
+    authDb.email.remove('andre@example.com', 'andre').then(function(res) {
+      done(new Error('Invalid email removal'));
+    }).catch((e) => {
+      expect(e.message).to.equal('Email andre@example.com has been verified and cannot be removed');
+      done();
+    }).catch(done);
   });
   it('All emails and related data can be fetched', function(done) {
     authDb.users.emails('andre').then(function(emails) {
       expect(emails).to.eql([
-        { email: 'andre@example.com', username: 'andre', verified: '2016-02-18' },
+        { email: 'andre@example.com', username: 'andre', verified: '2016-02-18', where: '' },
         { email: 'andre@example2.com', username: 'andre' }
       ]);
       done();
@@ -140,6 +186,16 @@ describe('Users', function() {
       roles: ['none', 'other']
     }, 'andre').then(function(res) {
       res.should.be.true;
+      done();
+    }).catch(done);
+  });
+  it('should not update user Andre email via user api', function(done) {
+    authDb.users.update({
+      email: 'andre@example3.com'
+    }, 'andre').then(function() {
+      done(new Error('User cannot have email updated by users api'));
+    }).catch(function(err) {
+      err.message.should.equal('To update/create/delete a email use email api');
       done();
     }).catch(done);
   });
@@ -232,18 +288,18 @@ describe('Roles', function() {
       let resource1, resource2;
       role.acl.map(function(aci) {
         if (util.isObject(aci) &&
-          aci.resource === 'spec' &&
-          aci.methods.length === 1 &&
-          aci.methods[0] === '*' &&
-          resource1 === void 0) {
+            aci.resource === 'spec' &&
+            aci.methods.length === 1 &&
+            aci.methods[0] === '*' &&
+            resource1 === void 0) {
           resource1 = true;
         }
         if (aci.resource === 'habilis/cadastro' &&
-          Array.isArray(aci.methods) &&
-          aci.methods.length === 2 &&
-          aci.methods.indexOf('POST') !== -1 &&
-          aci.methods.indexOf('PUT') !== -1 &&
-          resource2 === void 0) {
+            Array.isArray(aci.methods) &&
+            aci.methods.length === 2 &&
+            aci.methods.indexOf('POST') !== -1 &&
+            aci.methods.indexOf('PUT') !== -1 &&
+            resource2 === void 0) {
           resource2 = true;
         }
       });
@@ -339,17 +395,17 @@ describe('Roles', function() {
       let resource1, resource2;
       role.acl.map(function(aci) {
         if (aci.resource === 'token' &&
-          Array.isArray(aci.methods) &&
-          aci.methods[0] === 'GET' &&
-          resource1 === void 0) {
+            Array.isArray(aci.methods) &&
+            aci.methods[0] === 'GET' &&
+            resource1 === void 0) {
           resource1 = true
         }
         if (aci.resource === 'habilis/cadastro' &&
-          Array.isArray(aci.methods) &&
-          aci.methods.length === 2 &&
-          aci.methods.indexOf('POST') !== -1 &&
-          aci.methods.indexOf('UPDATE') !== -1 &&
-          resource2 === void 0) {
+            Array.isArray(aci.methods) &&
+            aci.methods.length === 2 &&
+            aci.methods.indexOf('POST') !== -1 &&
+            aci.methods.indexOf('UPDATE') !== -1 &&
+            resource2 === void 0) {
           resource2 = true
         }
       });

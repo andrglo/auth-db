@@ -5,6 +5,7 @@ var crypto = require('crypto');
 var clone = require('clone');
 var cuid = require('cuid');
 var co = require('co');
+var emailValidator = require('email-validator');
 
 const MIN_PASSWORD_LENGTH = 6;
 const USERS = 'auth-db:users:';
@@ -28,17 +29,21 @@ module.exports = (redis, options) => {
     });
   };
 
-  const saveUser = (key, user) => {
+  const createUser = (key, user) => {
     return co(function*() {
 
       let taken;
       const username = user.username.toLowerCase();
       const emails = user.email && user.email.toLowerCase().split(',') || [];
       for (let email of emails) {
-        const key = EMAILS + email.trim();
+        email = email.trim().toLowerCase();
+        if (!emailValidator.validate(email)) {
+          return throwError(`Email ${email} is invalid`);
+        }
+        const key = EMAILS + email;
         yield redis.watch(key);
         const emailRecord = yield redis.hgetall(key);
-        if (emailRecord.username && emailRecord.username !== username) {
+        if (emailRecord.username) {
           taken = email.trim();
           break;
         }
@@ -56,6 +61,45 @@ module.exports = (redis, options) => {
       return res !== null || throwError('User lock error');
     });
   };
+
+  const addEmail = (email, username) => co(function*() {
+
+    let key = USERS + username;
+    yield redis.watch(key);
+    const user = yield redis.hgetall(key);
+    if (user.email) {
+      user.email = user.email.split(',').concat(email).join(',');
+    } else {
+      user.email = email;
+    }
+
+    let transaction = redis.multi().hmset(key, user);
+    key = EMAILS + email.trim();
+    transaction = transaction.hsetnx(key, 'username', username);
+
+    const res = yield transaction.exec();
+    return res !== null || throwError('User/email lock error');
+  });
+
+  const removeEmail = (email, username) => co(function*() {
+
+    let key = USERS + username;
+    yield redis.watch(key);
+    const user = yield redis.hgetall(key);
+    const emails = user.email && user.email.split(',') || [];
+    const index = emails.indexOf(email);
+    if (index > -1) {
+      emails.splice(index, 1);
+    }
+    user.email = emails.join(',');
+
+    let transaction = redis.multi().hmset(key, user);
+    key = EMAILS + email.trim();
+    transaction = transaction.del(key);
+
+    const res = yield transaction.exec();
+    return res !== null || throwError('User/email lock error');
+  });
 
   const saveRole = (key, role, acl) => {
     let transaction = redis.multi().hmset(key, role);
@@ -92,13 +136,14 @@ module.exports = (redis, options) => {
             return redis.watch(key)
               .then(() => redis
                 .hmget(key, 'username')
-                .then(res => res[0] === null ? saveUser(key, user) : throwError('User name already taken')));
+                .then(res => res[0] === null ? createUser(key, user) : throwError('User name already taken')));
           });
         });
       },
       update: function(user, username) {
         return Promise.resolve().then(function() {
           assert(username, 'Missing username');
+          assert(!user.email, 'To update/create/delete a email use email api');
           return encryptPassword(user, options).then((user) => {
             username = username.toLowerCase();
             const key = USERS + username;
@@ -110,7 +155,11 @@ module.exports = (redis, options) => {
                     return throwError('User not found');
                   }
                   record = Object.assign(record, user);
-                  return saveUser(key, record);
+                  return redis
+                    .multi()
+                    .hmset(key, record)
+                    .exec()
+                    .then(res => res !== null || throwError('User update lock error'));
                 }));
           });
         });
@@ -144,10 +193,28 @@ module.exports = (redis, options) => {
       get: function(email) {
         return redis.hgetall(EMAILS + email.toLowerCase());
       },
+      add: function(email, username) {
+        return Promise.resolve().then(function() {
+          email = email.trim().toLowerCase();
+          if (!emailValidator.validate(email)) {
+            return throwError(`Email ${email} is invalid`);
+          }
+          const key = EMAILS + email;
+          return redis.watch(key)
+            .then(() => redis.hgetall(key)
+              .then((record) => {
+                const found = record.username;
+                if (found) {
+                  return throwError(`Email ${email} already exist`);
+                }
+                return addEmail(email, username.toLowerCase());
+              }));
+        });
+      },
       update: function(data, email) {
         return Promise.resolve().then(function() {
           assert(email, 'Missing email');
-          email = email.toLowerCase();
+          email = email.trim().toLowerCase();
           const key = EMAILS + email;
           return redis.watch(key)
             .then(() => redis.hgetall(key)
@@ -167,7 +234,32 @@ module.exports = (redis, options) => {
                   .then(res => res !== null || throwError('Email update lock error'));
               }));
         });
-      }
+      },
+      remove: function(email, username) {
+        return Promise.resolve().then(function() {
+          email = email.trim().toLowerCase();
+          username = username.toLowerCase();
+          if (!emailValidator.validate(email)) {
+            return throwError(`Email ${email} is invalid`);
+          }
+          const key = EMAILS + email;
+          return redis.watch(key)
+            .then(() => redis.hgetall(key)
+              .then((record) => {
+                const found = record.username;
+                if (!found) {
+                  return throwError(`Email ${email} not found`);
+                }
+                if (record.username !== username) {
+                  return throwError(`Email ${email} not registered for user ${username}`);
+                }
+                if (record.verified) {
+                  return throwError(`Email ${email} has been verified and cannot be removed`);
+                }
+                return removeEmail(email, username);
+              }));
+        });
+      },
     },
     roles: {
       get: function(name) {
