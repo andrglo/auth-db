@@ -275,6 +275,12 @@ module.exports = (redis, options) => {
               });
           });
       },
+      list: function(prefix) {
+        prefix = prefix || '';
+        return redis
+          .keys(`${ROLES}${prefix.toLowerCase()}*[^\\:acl]`)
+          .then(keys => keys.map(key => key.replace(ROLES, '')));
+      },
       create: function(role) {
 
         return Promise.resolve().then(function() {
