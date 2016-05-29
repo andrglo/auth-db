@@ -278,7 +278,8 @@ module.exports = (redis, options) => {
       list: function(prefix) {
         prefix = prefix || '';
         return redis
-          .keys(`${ROLES}${prefix.toLowerCase()}*[^\\:acl]`)
+          .keys(`${ROLES}${prefix.toLowerCase()}*`)
+          .filter(role => role.indexOf(':acl') === -1)
           .then(keys => keys.map(key => key.replace(ROLES, '')));
       },
       create: function(role) {

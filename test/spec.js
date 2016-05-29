@@ -525,7 +525,7 @@ describe('Permission check benchmark', function() {
   });
   it('lets list all roles', function(done) {
     authDb.roles.list().then(function(roles) {
-      expect(roles).to.eql(['marketing', 'teste de benchmark']);
+      expect(roles).to.eql(['no acl', 'marketing', 'teste de benchmark']);
       done();
     }).catch(done);
   });
