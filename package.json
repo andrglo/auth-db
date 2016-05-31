@@ -1,6 +1,6 @@
 {
   "name": "auth-db",
-  "version": "2.1.6",
+  "version": "2.1.7",
   "description": "Authentication and authorization database",
   "homepage": "",
   "repository": "andrglo/auth-db",
