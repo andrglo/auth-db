@@ -259,20 +259,20 @@ module.exports = (redis, options) => {
                 return removeEmail(email, username);
               }));
         });
-      },
+      }
     },
     roles: {
       get: function(name) {
         var key = ROLES + name.toLowerCase();
         return redis.hgetall(key)
           .then(function(record) {
-            return redis.smembers(key + ':acl')
+            return record.name ? redis.smembers(key + ':acl')
               .then(function(res) {
                 if (res) {
                   record.acl = setToAcl(res);
                 }
                 return record;
-              });
+              }) : record;
           });
       },
       list: function(prefix) {

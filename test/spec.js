@@ -308,6 +308,12 @@ describe('Roles', function() {
       done();
     }).catch(done);
   });
+  it('should return an empty object if role does not exist', function(done) {
+    authDb.roles.get('tourism').then(function(role) {
+      expect(Object.keys(role).length).to.equal(0);
+      done();
+    }).catch(done);
+  });
   it('Marketing should have permission to spec any', function(done) {
     authDb.roles.hasPermission('mArketing', 'spec', 'any').then(function(allowed) {
       allowed.should.equal(true);
@@ -525,7 +531,10 @@ describe('Permission check benchmark', function() {
   });
   it('lets list all roles', function(done) {
     authDb.roles.list().then(function(roles) {
-      expect(roles).to.eql(['no acl', 'marketing', 'teste de benchmark']);
+      expect(roles.length).to.equal(3);
+      expect(roles).to.include('no acl');
+      expect(roles).to.include('marketing');
+      expect(roles).to.include('teste de benchmark');
       done();
     }).catch(done);
   });
