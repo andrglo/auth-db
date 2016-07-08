@@ -29,7 +29,7 @@
     "gulp-istanbul": "^0.10.4",
     "gulp-mocha": "^2.2.0",
     "gulp-nsp": "^2.4.1",
-    "ioredis": "^2.0.1",
+    "ioredis": "^2.2.0",
     "randomstring": "^1.1.4"
   },
   "scripts": {
