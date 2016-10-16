@@ -1,0 +1,26 @@
+version: '2'
+
+services:
+
+  dms:
+    image: andrglo/everest
+    hostname: orion
+    command: tail -f /dev/null
+    working_dir: /andrglo/auth-db
+    volumes:
+      - ./docker_fish_history:/root/.config/fish/fish_history
+      - .:/andrglo/auth-db
+    environment:
+      - NODE_ENV=development
+    restart: always
+
+  redis:
+    image: redis
+    ports:
+      - "6379:6379"
+    restart: always
+
+
+
+
+

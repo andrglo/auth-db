@@ -1,11 +1,9 @@
-'use strict';
-
-var assert = require('assert');
-var crypto = require('crypto');
-var clone = require('clone');
-var cuid = require('cuid');
-var co = require('co');
-var emailValidator = require('email-validator');
+const assert = require('assert');
+const crypto = require('crypto');
+const clone = require('clone');
+const cuid = require('cuid');
+const co = require('co');
+const emailValidator = require('email-validator');
 
 const MIN_PASSWORD_LENGTH = 6;
 const USERS = 'auth-db:users:';
@@ -263,7 +261,7 @@ module.exports = (redis, options) => {
     },
     roles: {
       get: function(name) {
-        var key = ROLES + name.toLowerCase();
+        const key = ROLES + name.toLowerCase();
         return redis.hgetall(key)
           .then(function(record) {
             return record.name ? redis.smembers(key + ':acl')
@@ -288,9 +286,9 @@ module.exports = (redis, options) => {
           assert(role.name, 'Role name is missing');
           assert(role.acl === void 0 || Array.isArray(role.acl), 'acl must be an array');
           role = clone(role);
-          var acl = role.acl;
+          const acl = role.acl;
           delete role.acl;
-          var key = ROLES + role.name.toLowerCase();
+          const key = ROLES + role.name.toLowerCase();
           return redis.watch(key)
             .then(() => redis
               .hmget(key, 'name')
@@ -305,10 +303,10 @@ module.exports = (redis, options) => {
           assert(name, 'Role name is missing');
           assert(role.acl === void 0 || Array.isArray(role.acl), 'acl must be an array');
           role = clone(role);
-          var acl = role.acl;
+          const acl = role.acl;
           delete role.acl;
           name = name.toLowerCase();
-          var key = ROLES + name;
+          const key = ROLES + name;
           return redis.watch(key)
             .then(() => redis.hgetall(key)
               .then((record) => {
@@ -323,11 +321,11 @@ module.exports = (redis, options) => {
       },
       hasPermission: function(roles, resource, method) {
 
-        var checkRole = name => {
+        const checkRole = name => {
           if (typeof name !== 'string') {
             return false;
           }
-          var key = ROLES + name.toLowerCase() + ':acl';
+          const key = ROLES + name.toLowerCase() + ':acl';
           return typeof method === 'string' ?
             redis.sismember(key, resource + method.toUpperCase())
               .then(res => res || redis.sismember(key, resource + '*'))
@@ -350,8 +348,8 @@ module.exports = (redis, options) => {
         return redis.hgetall(SESSIONS + id);
       },
       create: function(expiresInSeconds, data) {
-        var id = cuid();
-        var key = SESSIONS + id;
+        const id = cuid();
+        const key = SESSIONS + id;
         return redis.hmset(key, data)
           .then(function(res) {
             if (expiresInSeconds) {
@@ -409,7 +407,7 @@ function hashPassword(password, salt, options) {
 }
 
 function aclToSet(acl) {
-  var set = [];
+  const set = [];
   acl.forEach(function(aci) {
     if (typeof aci === 'string') {
       aci = { resource: aci };
@@ -425,10 +423,10 @@ function aclToSet(acl) {
 }
 
 function setToAcl(set) {
-  var acl = [];
+  const acl = [];
   set.forEach(function(str) {
-    var elements = str.split(':');
-    var aci = acl.filter(obj => obj.resource === elements[0]);
+    const elements = str.split(':');
+    const aci = acl.filter(obj => obj.resource === elements[0]);
     if (aci.length === 0) {
       acl.push({
         resource: elements[0],

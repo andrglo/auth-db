@@ -1,26 +1,22 @@
-'use strict';
-
-var chai = require('chai');
-var expect = chai.expect;
+const chai = require('chai');
+const expect = chai.expect;
 chai.should();
-var util = require('util');
-var randomstring = require('randomstring');
+const util = require('util');
+const randomstring = require('randomstring');
 
-var Redis = require('ioredis');
-var redis = new Redis({
+const Redis = require('ioredis');
+const redis = new Redis({
   port: process.env.REDIS_PORT || 6379,
-  host: process.env.REDIS_HOST || '127.0.0.1',
+  host: process.env.REDIS_HOST || 'redis',
   db: process.env.REDIS_DATABASE || 0
 });
 
-var authDb = require('../src')(redis, {
+const authDb = require('../src')(redis, {
   saltLength: 32,
   iterations: 100000,
   keylen: 512,
   digest: 'sha512'
 });
-
-var log = console.log;
 
 before(function() {
   return redis.flushdb();
@@ -69,7 +65,7 @@ describe('Users', function() {
       email: 'andre@example.com, andre@example2.com ',
       roles: ['none']
     }).then(function(res) {
-      res.should.be.true;
+      expect(res).equal(true);
       return authDb.users.checkPassword({
         password: '12345678',
         username: 'Andre'
@@ -115,7 +111,7 @@ describe('Users', function() {
   });
   it('Email andre@example3.com can be added', function(done) {
     authDb.email.add('andre@example3.com', 'andre').then(function(res) {
-      res.should.be.true;
+      expect(res).equal(true);
       done();
     }).catch(done);
   });
@@ -125,7 +121,7 @@ describe('Users', function() {
       verified: '2016-02-19',
       where: 'here'
     }, 'andre@example.com').then(function(res) {
-      res.should.be.true;
+      expect(res).equal(true);
       done();
     }).catch(done);
   });
@@ -142,7 +138,7 @@ describe('Users', function() {
       verified: '2016-02-18',
       where: null
     }, 'andre@example.com').then(function(res) {
-      res.should.be.true;
+      expect(res).equal(true);
       done();
     }).catch(done);
   });
@@ -156,7 +152,7 @@ describe('Users', function() {
   });
   it('Email andre@example3.com can be removed', function(done) {
     authDb.email.remove('andre@example3.com', 'andre').then(function(res) {
-      res.should.be.true;
+      expect(res).equal(true);
       done();
     }).catch(done);
   });
@@ -185,7 +181,7 @@ describe('Users', function() {
       lastName: 'Glória',
       roles: ['none', 'other']
     }, 'andre').then(function(res) {
-      res.should.be.true;
+      expect(res).equal(true);
       done();
     }).catch(done);
   });
@@ -228,7 +224,7 @@ describe('Roles', function() {
     authDb.roles.create({
       field: 'role'
     }).then(function() {
-      done(new Error('Invalid role'))
+      done(new Error('Invalid role'));
     }).catch(function(err) {
       err.message.should.equal('Role name is missing');
       done();
@@ -238,7 +234,7 @@ describe('Roles', function() {
     authDb.roles.update({
       name: 'role'
     }, 'role').then(function() {
-      done(new Error('Invalid update'))
+      done(new Error('Invalid update'));
     }).catch(function(err) {
       err.message.should.equal('Role not found');
       done();
@@ -248,7 +244,7 @@ describe('Roles', function() {
     authDb.roles.create({
       name: 'no acl'
     }).then(function(res) {
-      res.should.be.true;
+      expect(res).equal(true);
       done();
     }).catch(done);
   });
@@ -261,7 +257,7 @@ describe('Roles', function() {
         methods: ['post', 'put']
       }]
     }).then(function(res) {
-      res.should.be.true;
+      expect(res).equal(true);
       done();
     }).catch(done);
   });
@@ -386,7 +382,7 @@ describe('Roles', function() {
         methods: ['post', 'update']
       }]
     }, 'marketing').then(function(res) {
-      res.should.be.true;
+      expect(res).equal(true);
       done();
     }).catch(done);
   });
@@ -398,13 +394,14 @@ describe('Roles', function() {
       role.name.should.equal('MARKETING');
       role.description.should.equal('Do the marketing');
       role.location.should.equal('unknown');
-      let resource1, resource2;
+      let resource1;
+      let resource2;
       role.acl.map(function(aci) {
         if (aci.resource === 'token' &&
             Array.isArray(aci.methods) &&
             aci.methods[0] === 'GET' &&
             resource1 === void 0) {
-          resource1 = true
+          resource1 = true;
         }
         if (aci.resource === 'habilis/cadastro' &&
             Array.isArray(aci.methods) &&
@@ -412,7 +409,7 @@ describe('Roles', function() {
             aci.methods.indexOf('POST') !== -1 &&
             aci.methods.indexOf('UPDATE') !== -1 &&
             resource2 === void 0) {
-          resource2 = true
+          resource2 = true;
         }
       });
       expect(resource1).to.equal(true);
@@ -432,10 +429,10 @@ describe('Sessions', function() {
   it('should return an empty session', function(done) {
     authDb.sessions.get('1').then(function(res) {
       expect(res).to.deep.equal({});
-      done()
-    }).catch(done)
+      done();
+    }).catch(done);
   });
-  var session;
+  let session;
   it('should create a new session valid for 1 second', function(done) {
     authDb.sessions.create(1, {
       username: 'andre'
@@ -451,14 +448,14 @@ describe('Sessions', function() {
     authDb.sessions.get(session).then(function(res) {
       expect(res.username === 'andre').to.equal(true);
       setTimeout(function() {
-        done()
+        done();
       }, 500);
     }).catch(done);
   });
   it('now should have gone', function(done) {
     authDb.sessions.get(session).then(function(res) {
       expect(res).to.deep.equal({});
-      done()
+      done();
     }).catch(done);
   });
   it('should create a new session valid for 1 minute', function(done) {
@@ -478,14 +475,14 @@ describe('Sessions', function() {
   });
   it('but if I delete it', function(done) {
     authDb.sessions.destroy(session).then(function(res) {
-      res.should.be.true;
+      expect(res).equal(true);
       done();
     }).catch(done);
   });
   it('now should have gone', function(done) {
     authDb.sessions.get(session).then(function(res) {
       expect(res).to.deep.equal({});
-      done()
+      done();
     }).catch(done);
   });
 });
@@ -493,7 +490,7 @@ describe('Sessions', function() {
 describe('Permission check benchmark', function() {
   it('should save a random string 10000 times', function(done) {
     let acl = [];
-    for (var i = 0; i < 10000; i++) {
+    for (let i = 0; i < 10000; i++) {
       acl.push({
         resource: randomstring.generate(100),
         methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'ANY_METHOD_ANY_LENGTH']
@@ -507,7 +504,7 @@ describe('Permission check benchmark', function() {
       description: 'Do the benchmark',
       acl: acl
     }).then(function(res) {
-      res.should.be.true;
+      expect(res).equal(true);
       done();
     }).catch(function(err) {
       done(err);
@@ -516,7 +513,7 @@ describe('Permission check benchmark', function() {
   it('should test 1000 times and have access permission', function(done) {
     let initial = new Date();
     let promises = Promise.resolve();
-    for (var i = 0; i < 1000; i++) {
+    for (let i = 0; i < 1000; i++) {
       promises = promises.then(function() {
         return authDb.roles.hasPermission('teste de benchmark', 'resource').then(function(allowed) {
           allowed.should.equal(true);
@@ -531,7 +528,7 @@ describe('Permission check benchmark', function() {
   });
   it('lets list all roles', function(done) {
     authDb.roles.list().then(function(roles) {
-      expect(roles.length).to.equal(3);
+      expect(roles.length).to.equal(5);
       expect(roles).to.include('no acl');
       expect(roles).to.include('marketing');
       expect(roles).to.include('teste de benchmark');
