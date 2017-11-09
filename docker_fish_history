@@ -1,8 +1,2 @@
-- cmd: npm-check --skip-unused --update
-   when: 1470615608
-- cmd: npm install --cache-min 99999999
-   when: 1470615608
-- cmd: npm install
-   when: 1470615608
-- cmd: npm run test
+- cmd: yarn test
    when: 1470615608

@@ -344,12 +344,12 @@ module.exports = (redis, options) => {
       }
     },
     sessions: {
-      get: function(id) {
-        return redis.hgetall(SESSIONS + id);
+      get: function(username, id) {
+        return redis.hgetall(SESSIONS + `${username}:${id}`);
       },
-      create: function(expiresInSeconds, data) {
+      create: function(username, data, expiresInSeconds) {
         const id = cuid();
-        const key = SESSIONS + id;
+        const key = SESSIONS + `${username}:${id}`;
         return redis.hmset(key, data)
           .then(function(res) {
             if (expiresInSeconds) {
@@ -361,12 +361,29 @@ module.exports = (redis, options) => {
             return res === 'OK' ? id : null;
           });
       },
-      destroy: function(id) {
-        assert(typeof id === 'string', 'session id must be a string');
-        return redis.del(SESSIONS + id)
+      destroy: function(username, id) {
+        return redis.del(SESSIONS + `${username}:${id}`)
           .then(function(res) {
             return res === 1;
           });
+      },
+      reset: function(username) {
+        const stream = redis.scanStream({
+          match: `${SESSIONS}${username}:*`
+        });
+        return new Promise(
+          resolve => {
+            const keys = [];
+            stream.on('data', resultKeys => {
+              for (let i = 0; i < resultKeys.length; i++) {
+                keys.push(resultKeys[i]);
+              }
+            });
+            stream.on('end', () => resolve(keys));
+          }
+        )
+          .then(keys => Promise.all(keys.map(key => redis.del(key))))
+          .then(() => true);
       }
     }
 

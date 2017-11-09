@@ -1,6 +1,6 @@
 {
   "name": "auth-db",
-  "version": "2.1.9",
+  "version": "3.0.0",
   "description": "Authentication and authorization database",
   "homepage": "",
   "repository": "andrglo/auth-db",
@@ -22,14 +22,14 @@
     "database"
   ],
   "devDependencies": {
-    "chai": "^3.5.0",
+    "chai": "^4.1.2",
     "gulp": "^3.9.1",
     "gulp-coveralls": "^0.1.4",
-    "gulp-eslint": "^3.0.1",
+    "gulp-eslint": "^4.0.0",
     "gulp-istanbul": "^1.1.1",
-    "gulp-mocha": "^3.0.1",
+    "gulp-mocha": "^4.3.1",
     "gulp-nsp": "^2.4.2",
-    "ioredis": "^2.4.0",
+    "ioredis": "^3.2.1",
     "randomstring": "^1.1.4"
   },
   "scripts": {

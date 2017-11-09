@@ -3,7 +3,7 @@ version: '2'
 services:
 
   dms:
-    image: andrglo/everest
+    image: andrglo/everest:8.8.1
     hostname: orion
     command: tail -f /dev/null
     working_dir: /andrglo/auth-db
@@ -15,9 +15,9 @@ services:
     restart: always
 
   redis:
-    image: redis
+    image: redis:4-alpine
     ports:
-      - "6379:6379"
+      - "6374:6379"
     restart: always
 
 

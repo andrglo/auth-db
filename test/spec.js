@@ -8,7 +8,7 @@ const Redis = require('ioredis');
 const redis = new Redis({
   port: process.env.REDIS_PORT || 6379,
   host: process.env.REDIS_HOST || 'redis',
-  db: process.env.REDIS_DATABASE || 0
+  db: process.env.REDIS_DATABASE || 3
 });
 
 const authDb = require('../src')(redis, {
@@ -427,16 +427,16 @@ describe('Roles', function() {
 
 describe('Sessions', function() {
   it('should return an empty session', function(done) {
-    authDb.sessions.get('1').then(function(res) {
+    authDb.sessions.get().then(function(res) {
       expect(res).to.deep.equal({});
       done();
     }).catch(done);
   });
   let session;
   it('should create a new session valid for 1 second', function(done) {
-    authDb.sessions.create(1, {
+    authDb.sessions.create('andre', {
       username: 'andre'
-    }).then(function(res) {
+    }, 1).then(function(res) {
       expect(res).to.be.a('string');
       session = res;
       setTimeout(function() {
@@ -445,7 +445,7 @@ describe('Sessions', function() {
     }).catch(done);
   });
   it('should exists yet', function(done) {
-    authDb.sessions.get(session).then(function(res) {
+    authDb.sessions.get('andre', session).then(function(res) {
       expect(res.username === 'andre').to.equal(true);
       setTimeout(function() {
         done();
@@ -453,35 +453,85 @@ describe('Sessions', function() {
     }).catch(done);
   });
   it('now should have gone', function(done) {
-    authDb.sessions.get(session).then(function(res) {
+    authDb.sessions.get('andre', session).then(function(res) {
       expect(res).to.deep.equal({});
       done();
     }).catch(done);
   });
   it('should create a new session valid for 1 minute', function(done) {
-    authDb.sessions.create(60, {
+    authDb.sessions.create('andre', {
       username: 'andre'
-    }).then(function(res) {
+    }, 60).then(function(res) {
       expect(res).to.be.a('string');
       session = res;
       done();
     }).catch(done);
   });
   it('ok, created', function(done) {
-    authDb.sessions.get(session).then(function(res) {
+    authDb.sessions.get('andre', session).then(function(res) {
       expect(res.username === 'andre').to.equal(true);
       done();
     }).catch(done);
   });
   it('but if I delete it', function(done) {
-    authDb.sessions.destroy(session).then(function(res) {
+    authDb.sessions.destroy('andre', session).then(function(res) {
       expect(res).equal(true);
       done();
     }).catch(done);
   });
   it('now should have gone', function(done) {
-    authDb.sessions.get(session).then(function(res) {
+    authDb.sessions.get('andre', session).then(function(res) {
       expect(res).to.deep.equal({});
+      done();
+    }).catch(done);
+  });
+  const andreSessions = [];
+  const johnSessions = [];
+  it('should create 2 new sessions for andre', function(done) {
+    authDb.sessions.create('andre', {
+      username: 'andre'
+    }, 9999).then(function(res) {
+      expect(res).to.be.a('string');
+      andreSessions.push(res);
+      return authDb.sessions.create('andre', {
+        username: 'andre'
+      }, 9999);
+    }).then(function(res) {
+      expect(res).to.be.a('string');
+      andreSessions.push(res);
+      done();
+    }).catch(done);
+  });
+  it('should create 1 new sessions for john', function(done) {
+    authDb.sessions.create('john', {
+      username: 'john'
+    }, 9999).then(function(res) {
+      expect(res).to.be.a('string');
+      johnSessions.push(res);
+      done();
+    }).catch(done);
+  });
+  it('lets destroy all sessions for andre', function(done) {
+    authDb.sessions.reset('andre').then(function(res) {
+      expect(res).equal(true);
+      done();
+    }).catch(done);
+  });
+  it('no session 0 for andre now', function(done) {
+    authDb.sessions.get('andre', andreSessions[0]).then(function(res) {
+      expect(res).to.deep.equal({});
+      done();
+    }).catch(done);
+  });
+  it('no session 1 for andre now', function(done) {
+    authDb.sessions.get('andre', andreSessions[1]).then(function(res) {
+      expect(res).to.deep.equal({});
+      done();
+    }).catch(done);
+  });
+  it('john should exist yet', function(done) {
+    authDb.sessions.get('john', johnSessions[0]).then(function(res) {
+      expect(res.username === 'john').to.equal(true);
       done();
     }).catch(done);
   });
@@ -528,7 +578,7 @@ describe('Permission check benchmark', function() {
   });
   it('lets list all roles', function(done) {
     authDb.roles.list().then(function(roles) {
-      expect(roles.length).to.equal(5);
+      expect(roles.length).to.equal(3);
       expect(roles).to.include('no acl');
       expect(roles).to.include('marketing');
       expect(roles).to.include('teste de benchmark');
