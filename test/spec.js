@@ -11,27 +11,23 @@ const redis = new Redis({
   db: process.env.REDIS_DATABASE || 3
 })
 
-const authDb = require('../src')(redis, {
-  saltLength: 32,
-  iterations: 100000,
-  keylen: 512,
-  digest: 'sha512'
-})
+let authDb = require('../src')(redis)
+const delay = ms => new Promise(res => setTimeout(res, ms))
 
 before(function() {
   return redis.flushdb()
 })
 
 describe('Users', function() {
-  it('should reject due to missing password', function(done) {
-    authDb.users.create({
-      username: 'Owner'
-    }).then(function() {
-      done(new Error('Invalid user'))
-    }).catch(function(err) {
+  it('should reject due to missing password', async () => {
+    try {
+      await authDb.users.create({
+        username: 'Owner'
+      })
+      throw new Error('Invalid user')
+    } catch (err) {
       err.message.should.equal('Missing password')
-      done()
-    }).catch(done)
+    }
   })
   it('should not update a non existent user', function(done) {
     authDb.users.update({
@@ -65,7 +61,7 @@ describe('Users', function() {
       email: 'andre@example.com, andre@example2.com ',
       roles: ['none']
     }).then(function(res) {
-      expect(res).equal(true)
+      expect(res).equal('andre')
       return authDb.users.checkPassword({
         password: '12345678',
         username: 'Andre'
@@ -145,7 +141,7 @@ describe('Users', function() {
   it('Email andre@example.com cannot be updated without sending the username', function(done) {
     authDb.email.update({verified: '2016-02-19'}, 'andre@example.com').then(function(res) {
       done(new Error('Invalid email update'))
-    }).catch((e) => {
+    }).catch(e => {
       expect(e.message).to.equal('User name is missing or do not match')
       done()
     }).catch(done)
@@ -159,7 +155,7 @@ describe('Users', function() {
   it('Email andre@example.com cannot be removed due to verified property', function(done) {
     authDb.email.remove('andre@example.com', 'andre').then(function(res) {
       done(new Error('Invalid email removal'))
-    }).catch((e) => {
+    }).catch(e => {
       expect(e.message).to.equal('Email andre@example.com has been verified and cannot be removed')
       done()
     }).catch(done)
@@ -437,7 +433,7 @@ describe('Sessions', function() {
     authDb.sessions.create('andre', {
       username: 'andre'
     }, 1).then(function(res) {
-      expect(res).to.be.a('string')
+      expect(res).to.be.a('number')
       session = res
       setTimeout(function() {
         done()
@@ -462,7 +458,7 @@ describe('Sessions', function() {
     authDb.sessions.create('andre', {
       username: 'andre'
     }, 60).then(function(res) {
-      expect(res).to.be.a('string')
+      expect(res).to.be.a('number')
       session = res
       done()
     }).catch(done)
@@ -488,28 +484,35 @@ describe('Sessions', function() {
   const andreSessions = []
   const johnSessions = []
   it('should create 2 new sessions for andre', function(done) {
+    authDb = require('../src')(redis, {
+      timestamp: true,
+      passwordRequired: false
+    })
     authDb.sessions.create('andre', {
       username: 'andre'
-    }, 9999).then(function(res) {
-      expect(res).to.be.a('string')
+    }).then(function(res) {
+      expect(res).to.be.a('number')
       andreSessions.push(res)
       return authDb.sessions.create('andre', {
         username: 'andre'
-      }, 9999)
+      })
     }).then(function(res) {
-      expect(res).to.be.a('string')
+      expect(res).to.be.a('number')
       andreSessions.push(res)
       done()
     }).catch(done)
   })
-  it('should create 1 new sessions for john', function(done) {
-    authDb.sessions.create('john', {
+  it('should create 1 new sessions for john', async () => {
+    await authDb.users.create({
+      username: 'John',
+      expireOn: Date.now() + 1200,
+    })
+    await authDb.sessions.create('john', {
       username: 'john'
-    }, 9999).then(function(res) {
-      expect(res).to.be.a('string')
+    }, 1).then(function(res) {
+      expect(res).to.be.a('number')
       johnSessions.push(res)
-      done()
-    }).catch(done)
+    })
   })
   it('lets destroy all sessions for andre', function(done) {
     authDb.sessions.reset('andre').then(function(res) {
@@ -534,6 +537,37 @@ describe('Sessions', function() {
       expect(res.username === 'john').to.equal(true)
       done()
     }).catch(done)
+  })
+  it('validate john request', async () => {
+    console.time('sessionValidation')
+    await authDb.sessions.validate('john', johnSessions[0])
+    console.timeEnd('sessionValidation')
+  })
+  it('john session has gone', async () => {
+    try {
+      await delay(1000)
+      console.time('sessionValidation')
+      await authDb.sessions.validate('john', johnSessions[0])
+      throw new Error('invalid validation')
+    } catch (e) {
+      console.timeEnd('sessionValidation')
+      if (e.code !== 'notFound') {
+        throw e
+      }
+    }
+  })
+  it('john has no right to request', async () => {
+    try {
+      await delay(200)
+      console.time('sessionValidation')
+      await authDb.sessions.validate('john', johnSessions[0])
+      throw new Error('invalid validation')
+    } catch (e) {
+      console.timeEnd('sessionValidation')
+      if (e.code !== 'licenseExpired') {
+        throw e
+      }
+    }
   })
 })
 
