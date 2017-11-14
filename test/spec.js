@@ -114,16 +114,16 @@ describe('Users', function() {
   it('Email andre@example.com can have any property', function(done) {
     authDb.email.update({
       username: 'andre',
-      verified: '2016-02-19',
+      sameDate: '2016-02-19',
       where: 'here'
     }, 'andre@example.com').then(function(res) {
       expect(res).equal(true)
       done()
     }).catch(done)
   })
-  it('Email andre@example.com has verified and where properties', function(done) {
+  it('Email andre@example.com has sameDate and where properties', function(done) {
     authDb.email.get('andre@example.com').then(function(email) {
-      expect(email.verified).to.equal('2016-02-19')
+      expect(email.sameDate).to.equal('2016-02-19')
       expect(email.where).to.equal('here')
       done()
     }).catch(done)
@@ -131,7 +131,7 @@ describe('Users', function() {
   it('Email andre@example.com can have any property modified', function(done) {
     authDb.email.update({
       username: 'andre',
-      verified: '2016-02-18',
+      sameDate: '2016-02-18',
       where: null
     }, 'andre@example.com').then(function(res) {
       expect(res).equal(true)
@@ -139,7 +139,7 @@ describe('Users', function() {
     }).catch(done)
   })
   it('Email andre@example.com cannot be updated without sending the username', function(done) {
-    authDb.email.update({verified: '2016-02-19'}, 'andre@example.com').then(function(res) {
+    authDb.email.update({sameDate: '2016-02-19'}, 'andre@example.com').then(function(res) {
       done(new Error('Invalid email update'))
     }).catch(e => {
       expect(e.message).to.equal('User name is missing or do not match')
@@ -152,18 +152,27 @@ describe('Users', function() {
       done()
     }).catch(done)
   })
-  it('Email andre@example.com cannot be removed due to verified property', function(done) {
-    authDb.email.remove('andre@example.com', 'andre').then(function(res) {
-      done(new Error('Invalid email removal'))
-    }).catch(e => {
-      expect(e.message).to.equal('Email andre@example.com has been verified and cannot be removed')
-      done()
-    }).catch(done)
+  let verified
+  it('Set andre@example.com as verified', function(done) {
+    const now = Date.now()
+    authDb.email.setVerified('andre@example.com').then(function(res) {
+        expect(new Date(res).getTime()).least(now)
+        verified = res
+        setTimeout(() => {
+          authDb.email.setVerified('andre@example.com')
+            .then(function(res) {
+              expect(new Date(res).getTime()).below(Date.now())
+              done()
+            })
+            .catch(done)
+        }, 1)
+      })
+      .catch(done)
   })
   it('All emails and related data can be fetched', function(done) {
     authDb.users.emails('andre').then(function(emails) {
       expect(emails).to.eql([
-        {email: 'andre@example.com', username: 'andre', verified: '2016-02-18', where: ''},
+        {email: 'andre@example.com', username: 'andre', sameDate: '2016-02-18', where: '', verifiedAt: verified},
         {email: 'andre@example2.com', username: 'andre'}
       ])
       done()
@@ -248,10 +257,11 @@ describe('Roles', function() {
     authDb.roles.create({
       name: 'Marketing',
       description: 'Do the marketing',
-      acl: ['spec', {
-        resource: 'habilis/cadastro',
-        methods: ['post', 'put']
-      }]
+      acl: [
+        'spec', {
+          resource: 'habilis/cadastro',
+          methods: ['post', 'put']
+        }]
     }).then(function(res) {
       expect(res).equal(true)
       done()
@@ -261,10 +271,11 @@ describe('Roles', function() {
     authDb.roles.create({
       name: 'MARKETING',
       description: 'Sell',
-      acl: ['any', {
-        resource: 'habilis/other',
-        methods: ['get']
-      }]
+      acl: [
+        'any', {
+          resource: 'habilis/other',
+          methods: ['get']
+        }]
     }).then(function() {
       done(new Error('Invalid role created'))
     }).catch(function(err) {
@@ -370,13 +381,14 @@ describe('Roles', function() {
     authDb.roles.update({
       name: 'MARKETING',
       location: 'unknown',
-      acl: [{
-        resource: 'token',
-        methods: 'get'
-      }, {
-        resource: 'habilis/cadastro',
-        methods: ['post', 'update']
-      }]
+      acl: [
+        {
+          resource: 'token',
+          methods: 'get'
+        }, {
+          resource: 'habilis/cadastro',
+          methods: ['post', 'update']
+        }]
     }, 'marketing').then(function(res) {
       expect(res).equal(true)
       done()
@@ -433,7 +445,7 @@ describe('Sessions', function() {
     authDb.sessions.create('andre', {
       username: 'andre'
     }, 1).then(function(res) {
-      expect(res).to.be.a('number')
+      expect(res).to.be.a('string')
       session = res
       setTimeout(function() {
         done()
@@ -458,7 +470,7 @@ describe('Sessions', function() {
     authDb.sessions.create('andre', {
       username: 'andre'
     }, 60).then(function(res) {
-      expect(res).to.be.a('number')
+      expect(res).to.be.a('string')
       session = res
       done()
     }).catch(done)
@@ -491,13 +503,13 @@ describe('Sessions', function() {
     authDb.sessions.create('andre', {
       username: 'andre'
     }).then(function(res) {
-      expect(res).to.be.a('number')
+      expect(res).to.be.a('string')
       andreSessions.push(res)
       return authDb.sessions.create('andre', {
         username: 'andre'
       })
     }).then(function(res) {
-      expect(res).to.be.a('number')
+      expect(res).to.be.a('string')
       andreSessions.push(res)
       done()
     }).catch(done)
@@ -510,7 +522,7 @@ describe('Sessions', function() {
     await authDb.sessions.create('john', {
       username: 'john'
     }, 1).then(function(res) {
-      expect(res).to.be.a('number')
+      expect(res).to.be.a('string')
       johnSessions.push(res)
     })
   })

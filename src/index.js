@@ -1,5 +1,6 @@
 const assert = require('assert')
 const crypto = require('crypto')
+const uuidv4 = require('uuid/v4')
 const deburr = require('lodash.deburr')
 const emailValidator = require('email-validator')
 
@@ -9,6 +10,8 @@ const USERS = 'auth-db:users:'
 const EMAILS = 'auth-db:emails:'
 const ROLES = 'auth-db:roles:'
 const SESSIONS = 'auth-db:sessions:'
+
+const VERIFIED_FIELD = 'verifiedAt'
 
 const normalize = username => deburr(username).toLowerCase()
 
@@ -218,6 +221,15 @@ module.exports = (redis, options) => {
             : addEmail(email, normalize(username))
         )
       },
+      async setVerified(email) {
+        const key = EMAILS + email
+        let verified = await redis.hget(key, VERIFIED_FIELD)
+        if (!verified) {
+          verified = new Date().toISOString()
+          await redis.hmset(key, VERIFIED_FIELD, verified)
+        }
+        return verified
+      },
       update: function(data, email) {
         return Promise.resolve().then(function() {
           assert(email, 'Missing email')
@@ -260,9 +272,6 @@ module.exports = (redis, options) => {
                 }
                 if (record.username !== username) {
                   return throwError(`Email ${email} not registered for user ${username}`)
-                }
-                if (record.verified) {
-                  return throwError(`Email ${email} has been verified and cannot be removed`)
                 }
                 return removeEmail(email, username)
               }))
@@ -355,9 +364,9 @@ module.exports = (redis, options) => {
         return redis.hgetall(SESSIONS + `${username}:${id}`)
       },
       async create(username, data = {}, expiresInSeconds) {
-        const id = Date.now()
+        const id = uuidv4()
         const key = SESSIONS + `${username}:${id}`
-        data = Object.assign({lastRequest: id}, data)
+        data = Object.assign({createdAt: new Date().toISOString()}, data)
         const res = await redis.hmset(key, data)
         if (expiresInSeconds && res === 'OK') {
           await redis.expire(key, expiresInSeconds)

@@ -1,6 +1,6 @@
 {
   "name": "auth-db",
-  "version": "3.1.0",
+  "version": "3.1.1",
   "description": "Authentication and authorization database",
   "homepage": "",
   "repository": "andrglo/auth-db",
@@ -39,6 +39,7 @@
   "license": "MIT",
   "dependencies": {
     "email-validator": "^1.0.7",
-    "lodash.deburr": "^4.1.0"
+    "lodash.deburr": "^4.1.0",
+    "uuid": "^3.1.0"
   }
 }
