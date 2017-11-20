@@ -6,6 +6,10 @@ const emailValidator = require('email-validator')
 
 const MIN_PASSWORD_LENGTH = 8
 const MAX_PASSWORD_LENGTH = 60
+const MAX_INACTIVITY_IN_SECONDS =
+  process.env.NODE_ENV === 'test'
+    ? 1
+    : 60 * 60 * 24 * 10 // 10 days
 const USERS = 'auth-db:users:'
 const EMAILS = 'auth-db:emails:'
 const ROLES = 'auth-db:roles:'
@@ -363,14 +367,11 @@ module.exports = (redis, options) => {
       get(username, id) {
         return redis.hgetall(SESSIONS + `${username}:${id}`)
       },
-      async create(username, data = {}, expiresInSeconds) {
+      async create(username, data = {}) {
         const id = uuidv4()
         const key = SESSIONS + `${username}:${id}`
         data = Object.assign({createdAt: new Date().toISOString()}, data)
         const res = await redis.hmset(key, data)
-        if (expiresInSeconds && res === 'OK') {
-          await redis.expire(key, expiresInSeconds)
-        }
         return res === 'OK' ? id : null
       },
       async validate(username, id) {
@@ -384,6 +385,7 @@ module.exports = (redis, options) => {
         if (!await redis.exists(sessionKey)) {
           throw new AuthDbError('Session not found', 'notFound')
         }
+        await redis.expire(sessionKey, MAX_INACTIVITY_IN_SECONDS)
         await redis.hincrby(userKey, 'requests', 1)
         await redis.hincrby(sessionKey, 'requests', 1)
         await redis.hmset(userKey, 'lastRequest', now)

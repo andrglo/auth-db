@@ -1,6 +1,6 @@
 {
   "name": "auth-db",
-  "version": "3.1.1",
+  "version": "3.1.2",
   "description": "Authentication and authorization database",
   "homepage": "",
   "repository": "andrglo/auth-db",
@@ -34,7 +34,7 @@
   "scripts": {
     "ssh": "docker exec -it authdb_dms_1 fish",
     "prepublish": "gulp prepublish",
-    "test": "gulp"
+    "test": "NODE_ENV=test gulp"
   },
   "license": "MIT",
   "dependencies": {

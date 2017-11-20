@@ -441,35 +441,10 @@ describe('Sessions', function() {
     }).catch(done)
   })
   let session
-  it('should create a new session valid for 1 second', function(done) {
+  it('should create a new session', function(done) {
     authDb.sessions.create('andre', {
       username: 'andre'
-    }, 1).then(function(res) {
-      expect(res).to.be.a('string')
-      session = res
-      setTimeout(function() {
-        done()
-      }, 500)
-    }).catch(done)
-  })
-  it('should exists yet', function(done) {
-    authDb.sessions.get('andre', session).then(function(res) {
-      expect(res.username === 'andre').to.equal(true)
-      setTimeout(function() {
-        done()
-      }, 500)
-    }).catch(done)
-  })
-  it('now should have gone', function(done) {
-    authDb.sessions.get('andre', session).then(function(res) {
-      expect(res).to.deep.equal({})
-      done()
-    }).catch(done)
-  })
-  it('should create a new session valid for 1 minute', function(done) {
-    authDb.sessions.create('andre', {
-      username: 'andre'
-    }, 60).then(function(res) {
+    }).then(function(res) {
       expect(res).to.be.a('string')
       session = res
       done()
@@ -521,7 +496,7 @@ describe('Sessions', function() {
     })
     await authDb.sessions.create('john', {
       username: 'john'
-    }, 1).then(function(res) {
+    }).then(function(res) {
       expect(res).to.be.a('string')
       johnSessions.push(res)
     })
