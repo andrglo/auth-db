@@ -367,12 +367,15 @@ module.exports = (redis, options) => {
       get(username, id) {
         return redis.hgetall(SESSIONS + `${username}:${id}`)
       },
-      async create(username, data = {}) {
+      async create(
+        username, data = {},
+        maxInactivityInSeconds = MAX_INACTIVITY_IN_SECONDS
+      ) {
         const id = uuidv4()
         const sessionKey = SESSIONS + `${username}:${id}`
         data = Object.assign({createdAt: new Date().toISOString()}, data)
         const res = await redis.hmset(sessionKey, data)
-        await redis.expire(sessionKey, MAX_INACTIVITY_IN_SECONDS)
+        await redis.expire(sessionKey, maxInactivityInSeconds)
         return res === 'OK' ? id : null
       },
       async validate(username, id) {
