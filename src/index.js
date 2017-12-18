@@ -368,7 +368,8 @@ module.exports = (redis, options) => {
         return redis.hgetall(SESSIONS + `${username}:${id}`)
       },
       async create(
-        username, data = {},
+        username,
+        data = {},
         maxInactivityInSeconds = MAX_INACTIVITY_IN_SECONDS
       ) {
         const id = uuidv4()
@@ -378,7 +379,10 @@ module.exports = (redis, options) => {
         await redis.expire(sessionKey, maxInactivityInSeconds)
         return res === 'OK' ? id : null
       },
-      async validate(username, id) {
+      async validate(username,
+        id,
+        maxInactivityInSeconds = MAX_INACTIVITY_IN_SECONDS
+      ) {
         const now = Date.now()
         const userKey = USERS + username
         const licenseExpireOn = await redis.hget(userKey, 'expireOn')
@@ -389,7 +393,7 @@ module.exports = (redis, options) => {
         if (!await redis.exists(sessionKey)) {
           throw new AuthDbError('Session not found', 'notFound')
         }
-        await redis.expire(sessionKey, MAX_INACTIVITY_IN_SECONDS)
+        await redis.expire(sessionKey, maxInactivityInSeconds)
         await redis.hincrby(userKey, 'requests', 1)
         await redis.hincrby(sessionKey, 'requests', 1)
         await redis.hmset(userKey, 'lastRequest', now)
