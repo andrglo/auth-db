@@ -17,7 +17,7 @@ const SESSIONS = 'auth-db:sessions:'
 
 const VERIFIED_FIELD = 'verifiedAt'
 
-const normalize = username => deburr(username).toLowerCase()
+const normalize = username => deburr(username).toLowerCase().trim()
 
 function AuthDbError(message, code) {
   this.name = 'AuthDbError'
@@ -184,13 +184,31 @@ module.exports = (redis, options) => {
           .exec()
         return res !== null || await throwError('User update lock error')
       },
+      remove: async username => {
+        assert(username, 'Missing username')
+        const userKey = USERS + normalize(username)
+        await redis.watch(userKey)
+        const [requests, email] = await redis.hmget(userKey, 'requests', 'email')
+        if (Number(requests) > 0) {
+          await throwError('User cannot be removed', 'activeUser')
+        }
+        const emails = email ? email.split(',') : []
+        const multi = await redis.multi()
+        for (const email of emails) {
+          multi.del(EMAILS + email.trim())
+        }
+        const res = await multi
+          .del(userKey)
+          .exec()
+        return res !== null || await throwError('Remove user lock error')
+      },
       checkPassword: function(credentials) {
         return redis.hgetall(USERS + credentials.username.toLowerCase())
           .then(user => hashPassword(credentials.password, user.salt, options)
             .then(password => password === user.password))
       },
       emails: async username => {
-        username = username.toLowerCase()
+        username = normalize(username)
         const user = await redis.hgetall(USERS + username)
         const emailList = user.email
                           && user.email.toLowerCase().split(',') || []
