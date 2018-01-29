@@ -7,9 +7,7 @@ const emailValidator = require('email-validator')
 const MIN_PASSWORD_LENGTH = 8
 const MAX_PASSWORD_LENGTH = 60
 const MAX_INACTIVITY_IN_SECONDS =
-  process.env.NODE_ENV === 'test'
-    ? 1
-    : 60 * 60 * 24 * 10 // 10 days
+  process.env.NODE_ENV === 'test' ? 1 : 60 * 60 * 24 * 10 // 10 days
 const USERS = 'auth-db:users:'
 const EMAILS = 'auth-db:emails:'
 const ROLES = 'auth-db:roles:'
@@ -17,7 +15,10 @@ const SESSIONS = 'auth-db:sessions:'
 
 const VERIFIED_FIELD = 'verifiedAt'
 
-const normalize = username => deburr(username).toLowerCase().trim()
+const normalize = username =>
+  deburr(username)
+    .toLowerCase()
+    .trim()
 
 function AuthDbError(message, code) {
   this.name = 'AuthDbError'
@@ -82,7 +83,10 @@ module.exports = (redis, options) => {
     await redis.watch(key)
     const user = await redis.hgetall(key)
     if (user.email) {
-      user.email = user.email.split(',').concat(email).join(',')
+      user.email = user.email
+        .split(',')
+        .concat(email)
+        .join(',')
     } else {
       user.email = email
     }
@@ -127,18 +131,16 @@ module.exports = (redis, options) => {
   }
 
   return {
-
     users: {
       get: function(username) {
-        return redis.hgetall(USERS + normalize(username))
-          .then(user => {
-            if (user.roles) {
-              user.roles = user.roles.split(',')
-            }
-            delete user.password
-            delete user.salt
-            return user
-          })
+        return redis.hgetall(USERS + normalize(username)).then(user => {
+          if (user.roles) {
+            user.roles = user.roles.split(',')
+          }
+          delete user.password
+          delete user.salt
+          return user
+        })
       },
       async create(user) {
         assert(user.username, 'Missing username')
@@ -153,11 +155,9 @@ module.exports = (redis, options) => {
         const key = USERS + user.username
         await redis.watch(key)
         const res = await redis.hmget(key, 'username')
-        await (
-          res[0] === null
-            ? createUser(key, user)
-            : throwError('User name already taken', 'userExists')
-        )
+        await (res[0] === null
+          ? createUser(key, user)
+          : throwError('User name already taken', 'userExists'))
         return user.username
       },
       update: async (user, username) => {
@@ -188,7 +188,11 @@ module.exports = (redis, options) => {
         assert(username, 'Missing username')
         const userKey = USERS + normalize(username)
         await redis.watch(userKey)
-        const [requests, email] = await redis.hmget(userKey, 'requests', 'email')
+        const [requests, email] = await redis.hmget(
+          userKey,
+          'requests',
+          'email'
+        )
         if (Number(requests) > 0) {
           await throwError('User cannot be removed', 'activeUser')
         }
@@ -197,21 +201,23 @@ module.exports = (redis, options) => {
         for (const email of emails) {
           multi.del(EMAILS + email.trim())
         }
-        const res = await multi
-          .del(userKey)
-          .exec()
+        const res = await multi.del(userKey).exec()
         return res !== null || await throwError('Remove user lock error')
       },
       checkPassword: function(credentials) {
-        return redis.hgetall(USERS + credentials.username.toLowerCase())
-          .then(user => hashPassword(credentials.password, user.salt, options)
-            .then(password => password === user.password))
+        return redis
+          .hgetall(USERS + credentials.username.toLowerCase())
+          .then(user =>
+            hashPassword(credentials.password, user.salt, options).then(
+              password => password === user.password
+            )
+          )
       },
       emails: async username => {
         username = normalize(username)
         const user = await redis.hgetall(USERS + username)
-        const emailList = user.email
-                          && user.email.toLowerCase().split(',') || []
+        const emailList =
+          user.email && user.email.toLowerCase().split(',') || []
         const emails = []
         for (let email of emailList) {
           email = email.trim()
@@ -237,11 +243,9 @@ module.exports = (redis, options) => {
         await redis.watch(key)
         const record = await redis.hgetall(key)
         const found = Boolean(record.username)
-        return await (
-          found
-            ? throwError(`Email ${email} already exist`)
-            : addEmail(email, normalize(username))
-        )
+        return await (found
+          ? throwError(`Email ${email} already exist`)
+          : addEmail(email, normalize(username)))
       },
       async setVerified(email) {
         const key = EMAILS + email
@@ -257,24 +261,25 @@ module.exports = (redis, options) => {
           assert(email, 'Missing email')
           email = email.trim().toLowerCase()
           const key = EMAILS + email
-          return redis.watch(key)
-            .then(() => redis.hgetall(key)
-              .then(record => {
-                const found = record.username
-                if (!found) {
-                  return throwError('Email not found')
-                }
-                if (record.username !== data.username) {
-                  return throwError('User name is missing or do not match')
-                }
-                record = Object.assign(record, data)
-                return redis
-                  .multi()
-                  .hmset(key, record)
-                  .exec()
-                  .then(res => res !== null
-                               || throwError('Email update lock error'))
-              }))
+          return redis.watch(key).then(() =>
+            redis.hgetall(key).then(record => {
+              const found = record.username
+              if (!found) {
+                return throwError('Email not found')
+              }
+              if (record.username !== data.username) {
+                return throwError('User name is missing or do not match')
+              }
+              record = Object.assign(record, data)
+              return redis
+                .multi()
+                .hmset(key, record)
+                .exec()
+                .then(
+                  res => res !== null || throwError('Email update lock error')
+                )
+            })
+          )
         })
       },
       remove: function(email, username) {
@@ -285,34 +290,36 @@ module.exports = (redis, options) => {
             return throwError(`Email ${email} is invalid`)
           }
           const key = EMAILS + email
-          return redis.watch(key)
-            .then(() => redis.hgetall(key)
-              .then(record => {
-                const found = record.username
-                if (!found) {
-                  return throwError(`Email ${email} not found`)
-                }
-                if (record.username !== username) {
-                  return throwError(`Email ${email} not registered for user ${username}`)
-                }
-                return removeEmail(email, username)
-              }))
+          return redis.watch(key).then(() =>
+            redis.hgetall(key).then(record => {
+              const found = record.username
+              if (!found) {
+                return throwError(`Email ${email} not found`)
+              }
+              if (record.username !== username) {
+                return throwError(
+                  `Email ${email} not registered for user ${username}`
+                )
+              }
+              return removeEmail(email, username)
+            })
+          )
         })
       }
     },
     roles: {
       get: function(name) {
         const key = ROLES + name.toLowerCase()
-        return redis.hgetall(key)
-          .then(function(record) {
-            return record.name ? redis.smembers(key + ':acl')
-              .then(function(res) {
+        return redis.hgetall(key).then(function(record) {
+          return record.name
+            ? redis.smembers(key + ':acl').then(function(res) {
                 if (res) {
                   record.acl = setToAcl(res)
                 }
                 return record
-              }) : record
-          })
+              })
+            : record
+        })
       },
       list: function(prefix) {
         prefix = prefix || ''
@@ -324,39 +331,50 @@ module.exports = (redis, options) => {
       create: function(role) {
         return Promise.resolve().then(function() {
           assert(role.name, 'Role name is missing')
-          assert(role.acl === void 0
-                 || Array.isArray(role.acl), 'acl must be an array')
+          assert(
+            role.acl === void 0 || Array.isArray(role.acl),
+            'acl must be an array'
+          )
           role = Object.assign({}, role)
           const acl = role.acl
           delete role.acl
           const key = ROLES + role.name.toLowerCase()
-          return redis.watch(key)
-            .then(() => redis
-              .hmget(key, 'name')
-              .then(res => res[0] === null ? saveRole(key, role, acl)
-                : throwError('Role already exists')))
+          return redis
+            .watch(key)
+            .then(() =>
+              redis
+                .hmget(key, 'name')
+                .then(
+                  res =>
+                    res[0] === null
+                      ? saveRole(key, role, acl)
+                      : throwError('Role already exists')
+                )
+            )
         })
       },
       update: function(role, name) {
         return Promise.resolve().then(function() {
           assert(name, 'Role name is missing')
-          assert(role.acl === void 0
-                 || Array.isArray(role.acl), 'acl must be an array')
+          assert(
+            role.acl === void 0 || Array.isArray(role.acl),
+            'acl must be an array'
+          )
           role = Object.assign({}, role)
           const acl = role.acl
           delete role.acl
           name = name.toLowerCase()
           const key = ROLES + name
-          return redis.watch(key)
-            .then(() => redis.hgetall(key)
-              .then(record => {
-                const found = record.name && record.name.toLowerCase() === name
-                if (!found) {
-                  return throwError('Role not found')
-                }
-                record = Object.assign(record, role)
-                return saveRole(key, record, acl)
-              }))
+          return redis.watch(key).then(() =>
+            redis.hgetall(key).then(record => {
+              const found = record.name && record.name.toLowerCase() === name
+              if (!found) {
+                return throwError('Role not found')
+              }
+              record = Object.assign(record, role)
+              return saveRole(key, record, acl)
+            })
+          )
         })
       },
       hasPermission: function(roles, resource, method) {
@@ -366,19 +384,21 @@ module.exports = (redis, options) => {
           }
           const key = ROLES + name.toLowerCase() + ':acl'
           return typeof method === 'string'
-            ? redis.sismember(key, resource + method.toUpperCase())
-              .then(res => res || redis.sismember(key, resource + '*'))
-              .then(res => res === 1)
-            : redis.sismember(key, resource + '*')
-              .then(res => res === 1)
+            ? redis
+                .sismember(key, resource + method.toUpperCase())
+                .then(res => res || redis.sismember(key, resource + '*'))
+                .then(res => res === 1)
+            : redis.sismember(key, resource + '*').then(res => res === 1)
         }
 
         resource = resource.toLowerCase() + ':'
         roles = Array.isArray(roles) ? roles : [roles]
 
-        return roles.reduce((promise, role) =>
-          promise.then(res =>
-            res === true ? res : checkRole(role)), Promise.resolve(false))
+        return roles.reduce(
+          (promise, role) =>
+            promise.then(res => res === true ? res : checkRole(role)),
+          Promise.resolve(false)
+        )
       }
     },
     sessions: {
@@ -397,9 +417,11 @@ module.exports = (redis, options) => {
         await redis.expire(sessionKey, maxInactivityInSeconds)
         return res === 'OK' ? id : null
       },
-      async validate(username,
+      async validate(
+        username,
         id,
-        maxInactivityInSeconds = MAX_INACTIVITY_IN_SECONDS
+        maxInactivityInSeconds = MAX_INACTIVITY_IN_SECONDS,
+        fields
       ) {
         const now = Date.now()
         const userKey = USERS + username
@@ -416,6 +438,9 @@ module.exports = (redis, options) => {
         await redis.hincrby(sessionKey, 'requests', 1)
         await redis.hmset(userKey, 'lastRequest', now)
         await redis.hmset(sessionKey, 'lastRequest', now)
+        if (Array.isArray(fields)) {
+          return await redis.hmget(sessionKey, ...fields)
+        }
       },
       async destroy(username, id) {
         return await redis.del(SESSIONS + `${username}:${id}`) === 1
@@ -424,41 +449,38 @@ module.exports = (redis, options) => {
         const stream = redis.scanStream({
           match: `${SESSIONS}${username}:*`
         })
-        return new Promise(
-          resolve => {
-            const keys = []
-            stream.on('data', resultKeys => {
-              for (let i = 0; i < resultKeys.length; i++) {
-                keys.push(resultKeys[i])
-              }
-            })
-            stream.on('end', () => resolve(keys))
-          }
-        )
+        return new Promise(resolve => {
+          const keys = []
+          stream.on('data', resultKeys => {
+            for (let i = 0; i < resultKeys.length; i++) {
+              keys.push(resultKeys[i])
+            }
+          })
+          stream.on('end', () => resolve(keys))
+        })
           .then(keys => Promise.all(keys.map(key => redis.del(key))))
           .then(() => true)
       }
     }
-
   }
 }
 
 function encryptPassword(user, options) {
-  return Promise.resolve()
-    .then(() => {
-      assert(user.password.length
-             >= MIN_PASSWORD_LENGTH, 'password should have a minimum of '
-                                     + MIN_PASSWORD_LENGTH + ' characters')
-      assert(user.password.length
-             <= MAX_PASSWORD_LENGTH, 'password should have a maximum of '
-                                     + MAX_PASSWORD_LENGTH + ' characters')
-      user.salt = crypto.randomBytes(options.saltLength).toString('base64')
-      return hashPassword(user.password, user.salt, options)
-        .then(password => {
-          user.password = password
-          return user
-        })
+  return Promise.resolve().then(() => {
+    assert(
+      user.password.length >= MIN_PASSWORD_LENGTH,
+      'password should have a minimum of ' + MIN_PASSWORD_LENGTH + ' characters'
+    )
+    assert(
+      user.password.length <= MAX_PASSWORD_LENGTH,
+      'password should have a maximum of ' + MAX_PASSWORD_LENGTH + ' characters'
+    )
+    user.salt = crypto.randomBytes(options.saltLength).toString('base64')
+    return hashPassword(user.password, user.salt, options).then(password => {
+      user.password = password
+      return user
     })
+  })
 }
 
 function hashPassword(password, salt, options) {
@@ -474,7 +496,8 @@ function hashPassword(password, salt, options) {
           return reject(error)
         }
         resolve(key.toString('base64'))
-      })
+      }
+    )
   })
 }
 
