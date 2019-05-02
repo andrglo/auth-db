@@ -2,12 +2,10 @@
   "name": "auth-db",
   "version": "3.2.1",
   "description": "Authentication and authorization database",
-  "homepage": "",
-  "repository": "andrglo/auth-db",
+  "repository": "https://github.com/andrglo/auth-db.git",
   "author": {
     "name": "Andre Gloria",
-    "email": "andredagloria@gmail.com",
-    "url": ""
+    "email": "andredagloria@gmail.com"
   },
   "files": [
     "src"
@@ -22,24 +20,24 @@
     "database"
   ],
   "devDependencies": {
-    "chai": "^4.1.2",
-    "eslint-config-google": "^0.9.1",
-    "gulp": "^3.9.1",
-    "gulp-eslint": "^4.0.2",
-    "gulp-mocha": "^5.0.0",
-    "gulp-nsp": "^2.4.2",
-    "ioredis": "^3.2.2",
+    "chai": "^4.2.0",
+    "coveralls": "^3.0.3",
+    "eslint": "^5.16.0",
+    "eslint-config-google": "^0.12.0",
+    "ioredis": "^4.9.0",
+    "mocha": "^6.1.4",
+    "nyc": "^14.1.0",
     "randomstring": "^1.1.4"
   },
   "scripts": {
-    "ssh": "docker exec -it authdb_dms_1 fish",
-    "prepublish": "gulp prepublish",
-    "test": "NODE_ENV=test gulp"
+    "test": "nyc mocha --bail --exit --timeout 15000 test/spec.js",
+    "test:report:coverage": "nyc report --reporter=text-lcov | coveralls",
+    "ssh": "docker exec -it auth-db_dms_1 fish"
   },
   "license": "MIT",
   "dependencies": {
-    "email-validator": "^1.0.7",
+    "email-validator": "^2.0.4",
     "lodash.deburr": "^4.1.0",
-    "uuid": "^3.2.1"
+    "uuid": "^3.3.2"
   }
 }
