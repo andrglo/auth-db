@@ -12,6 +12,7 @@ services:
       - .:/root/auth-db
     environment:
       - NODE_ENV=test
+      - REDIS_HOST=redis
     restart: always
 
   redis:

@@ -24,6 +24,16 @@ jobs:
           paths:
             - ~/.cache/yarn
       - run:
+          name: Waiting for redis to be ready
+          command: |
+            for i in `seq 1 10`;
+            do
+              nc -z localhost 6379 && echo Success && exit 0
+              echo -n .
+              sleep 1
+            done
+            echo Failed waiting for redis && exit 1
+      - run:
           name: Tests
           command: |
             yarn test

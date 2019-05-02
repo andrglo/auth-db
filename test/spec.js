@@ -7,7 +7,7 @@ const randomstring = require('randomstring')
 const Redis = require('ioredis')
 const redis = new Redis({
   port: process.env.REDIS_PORT || 6379,
-  host: process.env.REDIS_HOST || 'redis',
+  host: process.env.REDIS_HOST || 'localhost',
   db: process.env.REDIS_DATABASE || 3
 })
 

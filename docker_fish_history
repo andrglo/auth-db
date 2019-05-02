@@ -1,2 +1,4 @@
+- cmd: nc -zv redis 6379
+   when: 1470615608
 - cmd: yarn test
    when: 1470615608
