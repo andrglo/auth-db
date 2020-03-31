@@ -1,6 +1,6 @@
 {
   "name": "auth-db",
-  "version": "3.2.5",
+  "version": "3.2.6",
   "description": "Authentication and authorization database",
   "repository": "https://github.com/andrglo/auth-db.git",
   "author": {
