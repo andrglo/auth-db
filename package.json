@@ -25,7 +25,7 @@
     "eslint": "^6.8.0",
     "eslint-config-google": "^0.14.0",
     "ioredis": "^4.14.1",
-    "mocha": "^6.2.2",
+    "mocha": "^7.1.1",
     "nyc": "^15.0.0",
     "randomstring": "^1.1.4"
   },
@@ -38,6 +38,6 @@
   "dependencies": {
     "email-validator": "^2.0.4",
     "lodash.deburr": "^4.1.0",
-    "uuid": "^3.3.3"
+    "uuid": "^7.0.2"
   }
 }
