@@ -4,7 +4,7 @@ jobs:
   test:
     working_directory: ~/repo
     docker:
-      - image: circleci/node:12.16.1
+      - image: circleci/node:15.12.0
         environment:
           NODE_ENV: test
       - image: redis:5-alpine
@@ -45,7 +45,7 @@ jobs:
   publish:
     working_directory: ~/repo
     docker:
-      - image: circleci/node:12.16.1
+      - image: circleci/node:15.12.0
     steps:
       - attach_workspace:
           at: ~/repo
